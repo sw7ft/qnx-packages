@@ -282,19 +282,52 @@ install_package() {
         success "$pkg_name installed successfully"
         log "Location: $pkg_dir"
         
-        # Check for binaries
+        # Check for binaries and libraries
+        has_bin=false
+        has_lib=false
+        
         if [ -d "$pkg_dir/bin" ]; then
-            warn "Add $pkg_dir/bin to your PATH to use $pkg_name binaries"
+            has_bin=true
         fi
         
-        # Look for main executable
-        for file in "$pkg_dir"/*; do
-            if [ -x "$file" ] && [ -f "$file" ]; then
-                basename_file=$(basename "$file")
-                warn "Executable found: $basename_file"
-                break
+        if [ -d "$pkg_dir/lib" ]; then
+            has_lib=true
+        fi
+        
+        # Provide comprehensive PATH setup instructions
+        if [ "$has_bin" = true ] || [ "$has_lib" = true ]; then
+            echo
+            warn "📋 Environment Setup Required:"
+            
+            if [ "$has_bin" = true ]; then
+                warn "Add to PATH: export PATH=\"$pkg_dir/bin:\$PATH\""
             fi
-        done
+            
+            if [ "$has_lib" = true ]; then
+                warn "Add to LD_LIBRARY_PATH: export LD_LIBRARY_PATH=\"$pkg_dir/lib:\$LD_LIBRARY_PATH\""
+            fi
+            
+            echo
+            warn "💡 Quick setup options:"
+            warn "1. Manual: Copy the export commands above"
+            warn "2. Auto:   . ./qpkg-env.sh  (sets up all QPKG packages)"
+            warn "3. Single: export PATH=\"$pkg_dir/bin:\$PATH\""
+            if [ "$has_lib" = true ]; then
+                warn "           export LD_LIBRARY_PATH=\"$pkg_dir/lib:\$LD_LIBRARY_PATH\""
+            fi
+        fi
+        
+        # Show available executables
+        if [ "$has_bin" = true ]; then
+            echo
+            log "🚀 Available commands:"
+            for exec in "$pkg_dir/bin"/*; do
+                if [ -f "$exec" ] && [ -x "$exec" ]; then
+                    basename_exec=$(basename "$exec")
+                    log "  $basename_exec"
+                fi
+            done
+        fi
         
         # Clean up download file after successful extraction
         rm -f "$pkg_file" 2>/dev/null

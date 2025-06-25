@@ -39,19 +39,27 @@ package-name/
 
 ### Archive Content Standards
 
-Archives should contain a well-organized structure:
+Archives must contain a standardized, well-organized structure:
 
 ```
-extracted-package/
+package-name/              # Root directory (lowercase, hyphenated)
 ├── bin/                   # Executables (added to PATH suggestions)
-├── lib/                   # Shared libraries
+├── lib/                   # Shared libraries (.so files)
 ├── include/               # Header files (for development packages)
 ├── share/                 # Documentation, man pages, data files
+│   └── doc/              # Package documentation
 ├── etc/                   # Configuration files
-├── README.md              # Package-specific documentation
-├── LICENSE                # License file
-└── INSTALL.md             # Installation/usage instructions
+├── README.md              # Package-specific documentation (REQUIRED)
+├── LICENSE                # License file (recommended)
+└── INSTALL.md             # Installation/usage instructions (optional)
 ```
+
+**Standardization Requirements:**
+- **Directory naming**: Lowercase with hyphens (e.g., `audioplayer`, not `audioPlayer`)
+- **Binary optimization**: Stripped debug symbols where possible
+- **Complete documentation**: Every package must include README.md
+- **Library bundling**: Include all custom/non-system dependencies in `lib/`
+- **Term49 compatibility**: Tested in BlackBerry 10 sandboxed environment
 
 ## 🔧 Technical Standards
 
@@ -121,6 +129,72 @@ Each package in `packages.json` follows this schema:
 - `license`: SPDX license identifier
 - `homepage`: Project website
 - `maintainer`: Package maintainer contact
+
+## 📋 Package Standardization Process
+
+### Pre-Standardization Checklist
+
+Before adding any package to the QPKG repository, it must undergo standardization:
+
+1. **Extract and Examine**
+   ```bash
+   # Extract the package
+   unzip package.zip  # or tar -xzf package.tar.gz
+   
+   # Examine structure
+   find extracted-package -type f -exec ls -la {} \;
+   file extracted-package/bin/* extracted-package/lib/*
+   ```
+
+2. **Directory Structure Standardization**
+   ```bash
+   # Rename to lowercase-hyphenated convention
+   mv CamelCaseDir package-name
+   
+   # Ensure standard directories exist
+   mkdir -p package-name/{bin,lib,share/doc,etc}
+   ```
+
+3. **Binary Optimization**
+   ```bash
+   # Strip debug symbols (if cross-compilation tools available)
+   arm-qnx-strip package-name/bin/* package-name/lib/* 2>/dev/null || true
+   
+   # Verify ARM QNX binaries
+   file package-name/bin/*
+   # Should show: ARM, EABI5, dynamically linked, interpreter /usr/lib/ldqnx.so.2
+   ```
+
+4. **Documentation Requirements**
+   - Create comprehensive `README.md` with usage examples
+   - Include installation instructions for both QPKG and manual installation
+   - Document any library dependencies and PATH requirements
+   - Specify BB10/Term49 compatibility notes
+
+5. **Final Verification**
+   ```bash
+   # Create standardized archive
+   tar -czf package-name.tar.gz package-name/
+   
+   # Verify size is reasonable for BB10
+   du -sh package-name.tar.gz
+   ```
+
+### Standardization Example: Audio Player
+
+**Original Issues Found:**
+- Directory name: `audioPlayer` (camelCase) ❌
+- Missing README.md ❌  
+- No documentation structure ❌
+
+**Standardization Applied:**
+- Renamed to: `audioplayer` ✅
+- Added comprehensive README.md ✅
+- Created `share/doc/` directory ✅
+- Maintained ARM QNX binaries integrity ✅
+- Preserved custom library (`libnixtla-audio.so`) ✅
+
+**Result:** Professional package ready for Term49 deployment
 
 ## 🚀 Package Development Workflow
 
@@ -233,14 +307,30 @@ ldd bin/your-binary
 
 Before submitting a package:
 
+### Standardization Requirements
+- [ ] **Directory naming** follows lowercase-hyphenated convention
+- [ ] **Archive structure** matches QPKG standards exactly
+- [ ] **README.md** comprehensive with usage examples
+- [ ] **File organization** (bin/, lib/, share/doc/, etc/)
+- [ ] **Binary verification** ARM EABI5, `/usr/lib/ldqnx.so.2`
+
+### Functionality & Compatibility  
 - [ ] **Binary works** on actual BB10 device
-- [ ] **Size optimized** (stripped, compressed)
-- [ ] **Documentation** complete (README.md)
-- [ ] **Dependencies** bundled or documented
+- [ ] **Term49 compatibility** tested in sandboxed environment
+- [ ] **Library dependencies** bundled in lib/ directory
+- [ ] **PATH requirements** documented in README
+
+### Optimization & Quality
+- [ ] **Size optimized** (stripped debug symbols if possible)
+- [ ] **Package size** reasonable for BB10 storage constraints
 - [ ] **License** clearly specified
-- [ ] **Archive structure** follows standards
-- [ ] **Manifest entry** complete and accurate
-- [ ] **Testing** performed on Term49
+- [ ] **Manifest entry** complete and accurate in packages.json
+
+### Professional Standards
+- [ ] **Documentation quality** matches professional standards
+- [ ] **Installation instructions** for both QPKG and manual install
+- [ ] **Usage examples** provided and tested
+- [ ] **Integration notes** for Term49/BB10 environment
 
 ## 🎯 Future Enhancements
 
