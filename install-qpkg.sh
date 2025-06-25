@@ -55,9 +55,17 @@ fi
 # Check if user has ~/usr/local/bin in PATH (common in Term49)
 if echo "$PATH" | grep -q "$HOME/usr/local/bin"; then
     echo "🎯 Detected ~/usr/local/bin in PATH"
-    echo "Would you like to install QPKG system-wide? [y/N]"
-    printf "This allows running 'qpkg' directly instead of 'sh qpkg': "
-    read -r install_global
+    
+    # Check if we have interactive input (not piped)
+    if [ -t 0 ]; then
+        echo "Would you like to install QPKG system-wide? [y/N]"
+        printf "This allows running 'qpkg' directly instead of 'sh qpkg': "
+        read -r install_global
+    else
+        echo "📦 Non-interactive installation detected - installing globally by default"
+        echo "This allows running 'qpkg' directly instead of 'sh qpkg'"
+        install_global="y"
+    fi
     
             case "$install_global" in
             [yY]|[yY][eE][sS])
