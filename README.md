@@ -13,7 +13,8 @@ High-quality, GCC 9 optimized binaries ready for deployment on QNX devices.
 - **Zero dependencies** - No ICU libraries required
 - **Touch-optimized** - BlackBerry 10 browser compatible web interface
 
-**Download:** [QuickJS_QNX8_ARM_Deploy.tar.gz](https://github.com/sw7ft/qnx-packages/releases/download/v1.0/QuickJS_QNX8_ARM_Deploy.tar.gz) (15MB)
+**Download:** [QuickJS_QNX8_ARM_Deploy.tar.gz](https://github.com/sw7ft/qnx-packages/releases/download/v1.0/QuickJS_QNX8_ARM_Deploy.tar.gz) (15MB)  
+**Documentation:** [quickjs/README.md](quickjs/README.md)
 
 ## 🚀 Quick Start
 
@@ -54,6 +55,19 @@ These packages are designed to integrate with:
 - **BerryMuch OS** - Unix tools for BlackBerry 10
 - **Manual deployment** - Direct device installation
 - **Custom build systems** - As pre-compiled dependencies
+
+## 📁 Repository Structure
+
+```
+qnx-packages/
+├── README.md                 # This file - repository overview
+├── quickjs/                  # QuickJS JavaScript engine
+│   ├── README.md            # Package documentation
+│   └── QuickJS_QNX8_ARM_Deploy.tar.gz
+├── future-package/           # Additional packages coming soon
+└── docs/                     # Shared documentation
+    └── package-guidelines.md # Standards for new packages
+```
 
 ## 📚 Documentation
 
