@@ -1,56 +1,80 @@
-#!/bin/bash
+#!/bin/sh
 
 # QPKG - QNX Package Manager
 # Professional package management for QNX 8 ARM / BlackBerry 10
+# Optimized for BB10 Term49 environment
 
 VERSION="1.0.0"
 REPO_URL="https://github.com/sw7ft/qnx-packages"
 MANIFEST_URL="https://raw.githubusercontent.com/sw7ft/qnx-packages/main/packages.json"
-INSTALL_DIR="$HOME/.qnx-packages"
-CACHE_DIR="/tmp/qpkg-cache"
 
-# Colors for output
-RED='\033[0;31m'
-GREEN='\033[0;32m'
-YELLOW='\033[0;33m'
-BLUE='\033[0;34m'
-NC='\033[0m' # No Color
+# Use current directory for BB10 compatibility
+CURRENT_DIR=$(pwd)
+INSTALL_DIR="$CURRENT_DIR/qnx-packages"
+CACHE_DIR="$CURRENT_DIR/.qpkg-cache"
+
+# Colors for output (if supported)
+if [ -t 1 ]; then
+    RED='\033[0;31m'
+    GREEN='\033[0;32m'
+    YELLOW='\033[0;33m'
+    BLUE='\033[0;34m'
+    NC='\033[0m'
+else
+    RED=''
+    GREEN=''
+    YELLOW=''
+    BLUE=''
+    NC=''
+fi
 
 # Create directories
-mkdir -p "$INSTALL_DIR" "$CACHE_DIR"
+mkdir -p "$INSTALL_DIR" 2>/dev/null || {
+    echo "[qpkg] Warning: Could not create $INSTALL_DIR, using current directory"
+    INSTALL_DIR="$CURRENT_DIR"
+}
+
+mkdir -p "$CACHE_DIR" 2>/dev/null || {
+    echo "[qpkg] Warning: Could not create cache directory, using current directory"
+    CACHE_DIR="$CURRENT_DIR"
+}
 
 log() {
-    echo -e "${BLUE}[qpkg]${NC} $1"
+    printf "${BLUE}[qpkg]${NC} %s\n" "$1"
 }
 
 success() {
-    echo -e "${GREEN}[qpkg]${NC} $1"
+    printf "${GREEN}[qpkg]${NC} %s\n" "$1"
 }
 
 error() {
-    echo -e "${RED}[qpkg]${NC} $1"
+    printf "${RED}[qpkg]${NC} %s\n" "$1"
     exit 1
 }
 
 warn() {
-    echo -e "${YELLOW}[qpkg]${NC} $1"
+    printf "${YELLOW}[qpkg]${NC} %s\n" "$1"
 }
 
 # Download package manifest
 update_manifest() {
     log "Updating package manifest..."
+    
+    # Try curl first, then wget, then error
     if command -v curl >/dev/null 2>&1; then
         curl -L -o "$CACHE_DIR/packages.json" "$MANIFEST_URL" 2>/dev/null
+        result=$?
     elif command -v wget >/dev/null 2>&1; then
         wget -O "$CACHE_DIR/packages.json" "$MANIFEST_URL" 2>/dev/null
+        result=$?
     else
         error "Neither curl nor wget found. Cannot download packages."
     fi
     
-    if [ $? -eq 0 ]; then
+    if [ $result -eq 0 ] && [ -f "$CACHE_DIR/packages.json" ]; then
         success "Package manifest updated"
     else
-        error "Failed to download package manifest"
+        error "Failed to download package manifest. Check network connection."
     fi
 }
 
@@ -63,20 +87,34 @@ list_packages() {
     log "Available QNX packages:"
     echo
     
-    # Parse JSON (basic implementation)
-    grep -E '"[^"]+": {' "$CACHE_DIR/packages.json" | sed 's/.*"\([^"]*\)": {.*/\1/' | while read pkg; do
-        if [ "$pkg" != "name" ] && [ "$pkg" != "version" ] && [ "$pkg" != "description" ] && [ "$pkg" != "repository" ] && [ "$pkg" != "api_base" ] && [ "$pkg" != "packages" ]; then
-            desc=$(grep -A 5 "\"$pkg\":" "$CACHE_DIR/packages.json" | grep '"description"' | sed 's/.*"description": "\([^"]*\)".*/\1/')
-            size=$(grep -A 5 "\"$pkg\":" "$CACHE_DIR/packages.json" | grep '"size"' | sed 's/.*"size": "\([^"]*\)".*/\1/')
-            printf "  ${GREEN}%-12s${NC} - %s (${YELLOW}%s${NC})\n" "$pkg" "$desc" "$size"
-        fi
-    done
+    # Simple JSON parsing for BB10 compatibility
+    if [ -f "$CACHE_DIR/packages.json" ]; then
+        # Extract package names and info
+        sed -n '/"packages":/,/^  }$/p' "$CACHE_DIR/packages.json" | \
+        grep -E '    "[^"]+": {' | \
+        sed 's/.*"\([^"]*\)": {.*/\1/' | \
+        while read pkg; do
+            if [ -n "$pkg" ]; then
+                # Get description and size for this package
+                desc=$(sed -n "/\"$pkg\":/,/^    }/p" "$CACHE_DIR/packages.json" | \
+                       grep '"description":' | \
+                       sed 's/.*"description": "\([^"]*\)".*/\1/')
+                size=$(sed -n "/\"$pkg\":/,/^    }/p" "$CACHE_DIR/packages.json" | \
+                       grep '"size":' | \
+                       sed 's/.*"size": "\([^"]*\)".*/\1/')
+                
+                printf "  ${GREEN}%-12s${NC} - %s (${YELLOW}%s${NC})\n" "$pkg" "$desc" "$size"
+            fi
+        done
+    else
+        error "Package manifest not found"
+    fi
     echo
 }
 
 # Install a package
 install_package() {
-    local pkg_name="$1"
+    pkg_name="$1"
     
     if [ -z "$pkg_name" ]; then
         error "Package name required. Usage: qpkg install <package>"
@@ -91,69 +129,106 @@ install_package() {
         error "Package '$pkg_name' not found. Run 'qpkg list' to see available packages."
     fi
     
-    # Extract package info
-    download_url=$(grep -A 10 "\"$pkg_name\":" "$CACHE_DIR/packages.json" | grep '"download_url"' | sed 's/.*"download_url": "\([^"]*\)".*/\1/')
-    size=$(grep -A 10 "\"$pkg_name\":" "$CACHE_DIR/packages.json" | grep '"size"' | sed 's/.*"size": "\([^"]*\)".*/\1/')
+    # Extract package info using simpler parsing
+    download_url=$(sed -n "/\"$pkg_name\":/,/^    }/p" "$CACHE_DIR/packages.json" | \
+                   grep '"download_url":' | \
+                   sed 's/.*"download_url": "\([^"]*\)".*/\1/')
+    size=$(sed -n "/\"$pkg_name\":/,/^    }/p" "$CACHE_DIR/packages.json" | \
+           grep '"size":' | \
+           sed 's/.*"size": "\([^"]*\)".*/\1/')
     
-    log "Installing $pkg_name ($size)..."
-    log "Downloading from: $download_url"
-    
-    # Download package
-    pkg_file="$CACHE_DIR/${pkg_name}.tar.gz"
-    if command -v curl >/dev/null 2>&1; then
-        curl -L -o "$pkg_file" "$download_url"
-    else
-        wget -O "$pkg_file" "$download_url"
+    if [ -z "$download_url" ]; then
+        error "Could not find download URL for $pkg_name"
     fi
     
-    if [ $? -ne 0 ]; then
+    log "Installing $pkg_name ($size)..."
+    log "Downloading from GitHub..."
+    
+    # Download package
+    pkg_file="$CACHE_DIR/${pkg_name}.pkg"
+    if command -v curl >/dev/null 2>&1; then
+        curl -L -o "$pkg_file" "$download_url"
+        result=$?
+    elif command -v wget >/dev/null 2>&1; then
+        wget -O "$pkg_file" "$download_url"
+        result=$?
+    else
+        error "Neither curl nor wget found. Cannot download packages."
+    fi
+    
+    if [ $result -ne 0 ]; then
         error "Failed to download $pkg_name"
     fi
     
     # Extract package
     pkg_dir="$INSTALL_DIR/$pkg_name"
-    mkdir -p "$pkg_dir"
+    mkdir -p "$pkg_dir" 2>/dev/null || {
+        error "Cannot create directory $pkg_dir"
+    }
     
-    log "Extracting $pkg_name to $pkg_dir..."
+    log "Extracting $pkg_name..."
     
     # Determine archive type and extract
-    if [[ "$pkg_file" == *.tar.gz ]] || [[ "$download_url" == *.tar.gz ]]; then
-        tar -xzf "$pkg_file" -C "$pkg_dir" 2>/dev/null
-    elif [[ "$pkg_file" == *.tar ]] || [[ "$download_url" == *.tar ]]; then
-        tar -xf "$pkg_file" -C "$pkg_dir" 2>/dev/null
-    elif [[ "$pkg_file" == *.zip ]] || [[ "$download_url" == *.zip ]]; then
-        if command -v unzip >/dev/null 2>&1; then
-            unzip -q "$pkg_file" -d "$pkg_dir"
-        else
-            error "unzip not found, cannot extract ZIP archives"
-        fi
-    fi
+    case "$download_url" in
+        *.tar.gz)
+            if command -v tar >/dev/null 2>&1; then
+                tar -xzf "$pkg_file" -C "$pkg_dir" 2>/dev/null
+                extract_result=$?
+            else
+                error "tar command not available"
+            fi
+            ;;
+        *.tar)
+            if command -v tar >/dev/null 2>&1; then
+                tar -xf "$pkg_file" -C "$pkg_dir" 2>/dev/null
+                extract_result=$?
+            else
+                error "tar command not available"
+            fi
+            ;;
+        *.zip)
+            if command -v unzip >/dev/null 2>&1; then
+                unzip -q "$pkg_file" -d "$pkg_dir" 2>/dev/null
+                extract_result=$?
+            else
+                error "unzip command not available"
+            fi
+            ;;
+        *)
+            # Try tar.gz as default
+            tar -xzf "$pkg_file" -C "$pkg_dir" 2>/dev/null
+            extract_result=$?
+            ;;
+    esac
     
-    if [ $? -eq 0 ]; then
-        # Run installation script if it exists
-        if [ -f "$pkg_dir/install.sh" ]; then
-            log "Running installation script..."
-            chmod +x "$pkg_dir/install.sh"
-            cd "$pkg_dir" && ./install.sh
-        fi
+    if [ $extract_result -eq 0 ]; then
+        success "$pkg_name installed successfully"
+        log "Location: $pkg_dir"
         
-        success "$pkg_name installed successfully to $pkg_dir"
-        
-        # Add to PATH if it has binaries
+        # Check for binaries
         if [ -d "$pkg_dir/bin" ]; then
-            warn "Add $pkg_dir/bin to your PATH to use $pkg_name"
+            warn "Add $pkg_dir/bin to your PATH to use $pkg_name binaries"
         fi
+        
+        # Look for main executable
+        for file in "$pkg_dir"/*; do
+            if [ -x "$file" ] && [ -f "$file" ]; then
+                basename_file=$(basename "$file")
+                warn "Executable found: $basename_file"
+                break
+            fi
+        done
     else
         error "Failed to extract $pkg_name"
     fi
     
     # Cleanup
-    rm -f "$pkg_file"
+    rm -f "$pkg_file" 2>/dev/null
 }
 
 # Remove a package
 remove_package() {
-    local pkg_name="$1"
+    pkg_name="$1"
     
     if [ -z "$pkg_name" ]; then
         error "Package name required. Usage: qpkg remove <package>"
@@ -166,8 +241,12 @@ remove_package() {
     fi
     
     log "Removing $pkg_name..."
-    rm -rf "$pkg_dir"
-    success "$pkg_name removed successfully"
+    rm -rf "$pkg_dir" 2>/dev/null
+    if [ $? -eq 0 ]; then
+        success "$pkg_name removed successfully"
+    else
+        error "Failed to remove $pkg_name"
+    fi
 }
 
 # Show help
@@ -176,35 +255,37 @@ show_help() {
     echo "Professional package management for QNX 8 ARM / BlackBerry 10"
     echo
     echo "Usage: qpkg <command> [options]"
+    echo "   or: sh qpkg <command> [options]"
     echo
     echo "Commands:"
-    echo "  list                    List available packages"
+    echo "  list, --list            List available packages"
     echo "  install <package>       Install a package"
     echo "  remove <package>        Remove an installed package"
-    echo "  update                  Update package manifest"
-    echo "  help                    Show this help message"
+    echo "  update, --update        Update package manifest"
+    echo "  help, --help            Show this help message"
     echo
     echo "Examples:"
-    echo "  qpkg list               # Show all available packages"
-    echo "  qpkg install quickjs    # Install QuickJS JavaScript engine"
-    echo "  qpkg install mysql      # Install MySQL database server"
-    echo "  qpkg remove nano        # Remove nano text editor"
+    echo "  sh qpkg list            # Show all available packages"
+    echo "  sh qpkg install nano    # Install nano text editor"
+    echo "  sh qpkg install quickjs # Install QuickJS JavaScript engine"
+    echo "  sh qpkg remove nano     # Remove nano text editor"
     echo
+    echo "Install directory: $INSTALL_DIR"
     echo "Repository: $REPO_URL"
 }
 
-# Main command dispatcher
+# Main command dispatcher - handle both --flag and plain command formats
 case "$1" in
-    "list"|"ls")
+    "list"|"--list"|"ls")
         list_packages
         ;;
-    "install"|"add")
+    "install"|"--install"|"add")
         install_package "$2"
         ;;
-    "remove"|"rm"|"uninstall")
+    "remove"|"--remove"|"rm"|"uninstall")
         remove_package "$2"
         ;;
-    "update"|"refresh")
+    "update"|"--update"|"refresh")
         update_manifest
         ;;
     "help"|"--help"|"-h"|"")
@@ -213,4 +294,4 @@ case "$1" in
     *)
         error "Unknown command: $1. Run 'qpkg help' for usage information."
         ;;
-esac 
+esac
