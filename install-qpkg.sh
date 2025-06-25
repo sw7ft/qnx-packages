@@ -28,6 +28,27 @@ fi
 # Make executable
 chmod +x qpkg 2>/dev/null
 
+# Download QPKG Environment Helper
+echo "📥 Downloading QPKG environment helper..."
+if command -v curl >/dev/null 2>&1; then
+    curl -L -o qpkg-env.sh https://raw.githubusercontent.com/sw7ft/qnx-packages/main/qpkg-env.sh 2>/dev/null
+    env_result=$?
+elif command -v wget >/dev/null 2>&1; then
+    wget -O qpkg-env.sh https://raw.githubusercontent.com/sw7ft/qnx-packages/main/qpkg-env.sh 2>/dev/null
+    env_result=$?
+else
+    # This shouldn't happen since we already checked above
+    env_result=1
+fi
+
+if [ $env_result -eq 0 ]; then
+    echo "✅ Environment helper downloaded successfully"
+else
+    echo "⚠️  Failed to download environment helper (optional)"
+    echo "    You can download it manually later with:"
+    echo "    curl -L -o qpkg-env.sh https://raw.githubusercontent.com/sw7ft/qnx-packages/main/qpkg-env.sh"
+fi
+
 # Check if user has ~/usr/local/bin in PATH (common in Term49)
 if echo "$PATH" | grep -q "$HOME/usr/local/bin"; then
     echo "🎯 Detected ~/usr/local/bin in PATH"
@@ -66,6 +87,7 @@ fi
 
 echo
 echo "✅ QPKG installed successfully!"
+echo "✅ Environment helper (qpkg-env.sh) ready for use"
 echo
 
 # Show appropriate usage instructions
@@ -79,6 +101,9 @@ if [ "$GLOBAL_INSTALL" = true ]; then
     echo "📦 Alternative usage:"
     echo "  sh qpkg list            # Also works"
     echo "  ./qpkg list             # Also works"
+    echo
+    echo "🔧 Environment Setup:"
+    echo "  . ./qpkg-env.sh         # Auto-setup PATH for all packages"
 else
     echo "📦 Usage:"
     echo "  sh qpkg list            # Show available packages"
@@ -88,6 +113,9 @@ else
     echo
     echo "📦 Alternative usage:"
     echo "  ./qpkg list             # Also works if permissions allow"
+    echo
+    echo "🔧 Environment Setup:"
+    echo "  . ./qpkg-env.sh         # Auto-setup PATH for all packages"
 fi
 
 echo
