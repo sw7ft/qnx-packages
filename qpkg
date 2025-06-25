@@ -56,6 +56,24 @@ warn() {
     printf "${YELLOW}[qpkg]${NC} %s\n" "$1"
 }
 
+# Check if package is large (>50MB)
+is_large_package() {
+    size_str="$1"
+    size_num=$(echo "$size_str" | sed 's/[^0-9.]//g')
+    size_unit=$(echo "$size_str" | sed 's/[0-9.]//g')
+    
+    case "$size_unit" in
+        *GB|*gb) return 0 ;;  # Always large
+        *MB|*mb)
+            # Check if >50MB
+            if [ $(echo "$size_num > 50" | bc 2>/dev/null || echo "1") -eq 1 ]; then
+                return 0
+            fi
+            ;;
+    esac
+    return 1
+}
+
 # Download package manifest
 update_manifest() {
     log "Updating package manifest..."
@@ -103,13 +121,19 @@ list_packages() {
                        grep '"size":' | \
                        sed 's/.*"size": "\([^"]*\)".*/\1/')
                 
-                printf "  ${GREEN}%-12s${NC} - %s (${YELLOW}%s${NC})\n" "$pkg" "$desc" "$size"
+                # Mark large packages
+                if is_large_package "$size"; then
+                    printf "  ${GREEN}%-12s${NC} - %s (${RED}%s${NC} ${YELLOW}LARGE${NC})\n" "$pkg" "$desc" "$size"
+                else
+                    printf "  ${GREEN}%-12s${NC} - %s (${YELLOW}%s${NC})\n" "$pkg" "$desc" "$size"
+                fi
             fi
         done
     else
         error "Package manifest not found"
     fi
     echo
+    echo "Note: LARGE packages (>50MB) may take time to download on mobile connections."
 }
 
 # Install a package
@@ -141,23 +165,76 @@ install_package() {
         error "Could not find download URL for $pkg_name"
     fi
     
+    # Warn about large packages
+    if is_large_package "$size"; then
+        warn "⚠️  $pkg_name is a LARGE package ($size)"
+        warn "This may take several minutes to download on mobile connections."
+        printf "Continue? [y/N]: "
+        read -r response
+        case "$response" in
+            [yY]|[yY][eE][sS]) ;;
+            *) log "Download cancelled."; exit 0 ;;
+        esac
+    fi
+    
     log "Installing $pkg_name ($size)..."
     log "Downloading from GitHub..."
     
-    # Download package
+    # Download package with progress
     pkg_file="$CACHE_DIR/${pkg_name}.pkg"
+    
+    # Check if partial download exists
+    if [ -f "$pkg_file.partial" ]; then
+        log "Found partial download, attempting to resume..."
+        pkg_file_temp="$pkg_file.partial"
+    else
+        pkg_file_temp="$pkg_file"
+    fi
+    
     if command -v curl >/dev/null 2>&1; then
-        curl -L -o "$pkg_file" "$download_url"
+        # Use curl with progress bar for large files
+        if is_large_package "$size"; then
+            log "Downloading with progress indicator..."
+            curl -L --progress-bar -C - -o "$pkg_file_temp" "$download_url"
+        else
+            curl -L -o "$pkg_file_temp" "$download_url" 2>/dev/null
+        fi
         result=$?
+        
+        # Move partial to final if successful
+        if [ -f "$pkg_file.partial" ] && [ $result -eq 0 ]; then
+            mv "$pkg_file.partial" "$pkg_file"
+        fi
+        
     elif command -v wget >/dev/null 2>&1; then
-        wget -O "$pkg_file" "$download_url"
+        # Use wget with progress bar
+        if is_large_package "$size"; then
+            log "Downloading with progress indicator..."
+            wget --progress=bar --continue -O "$pkg_file_temp" "$download_url"
+        else
+            wget -O "$pkg_file_temp" "$download_url" 2>/dev/null
+        fi
         result=$?
+        
+        # Move partial to final if successful
+        if [ -f "$pkg_file.partial" ] && [ $result -eq 0 ]; then
+            mv "$pkg_file.partial" "$pkg_file"
+        fi
     else
         error "Neither curl nor wget found. Cannot download packages."
     fi
     
     if [ $result -ne 0 ]; then
+        if [ -f "$pkg_file" ]; then
+            mv "$pkg_file" "$pkg_file.partial"
+            warn "Download interrupted. Run the command again to resume."
+        fi
         error "Failed to download $pkg_name"
+    fi
+    
+    # Verify download completed
+    if [ ! -f "$pkg_file" ]; then
+        error "Download verification failed for $pkg_name"
     fi
     
     # Extract package
@@ -218,12 +295,14 @@ install_package() {
                 break
             fi
         done
+        
+        # Clean up download file after successful extraction
+        rm -f "$pkg_file" 2>/dev/null
+        rm -f "$pkg_file.partial" 2>/dev/null
+        
     else
         error "Failed to extract $pkg_name"
     fi
-    
-    # Cleanup
-    rm -f "$pkg_file" 2>/dev/null
 }
 
 # Remove a package
@@ -254,21 +333,47 @@ show_help() {
     echo "QPKG - QNX Package Manager v$VERSION"
     echo "Professional package management for QNX 8 ARM / BlackBerry 10"
     echo
-    echo "Usage: qpkg <command> [options]"
-    echo "   or: sh qpkg <command> [options]"
+    
+    # Check if qpkg is in PATH (global installation)
+    if command -v qpkg >/dev/null 2>&1 && [ "$(command -v qpkg)" != "./qpkg" ]; then
+        echo "Usage: qpkg <command> [options]"
+        echo "   or: sh qpkg <command> [options]"
+        echo "   or: ./qpkg <command> [options]"
+        echo
+        echo "Commands:"
+        echo "  list, --list            List available packages"
+        echo "  install <package>       Install a package"
+        echo "  remove <package>        Remove an installed package"
+        echo "  update, --update        Update package manifest"
+        echo "  help, --help            Show this help message"
+        echo
+        echo "Examples:"
+        echo "  qpkg list               # Show all available packages"
+        echo "  qpkg install nano       # Install nano text editor"
+        echo "  qpkg install quickjs    # Install QuickJS JavaScript engine"
+        echo "  qpkg remove nano        # Remove nano text editor"
+    else
+        echo "Usage: sh qpkg <command> [options]"
+        echo "   or: ./qpkg <command> [options]"
+        echo
+        echo "Commands:"
+        echo "  list, --list            List available packages"
+        echo "  install <package>       Install a package"
+        echo "  remove <package>        Remove an installed package"
+        echo "  update, --update        Update package manifest"
+        echo "  help, --help            Show this help message"
+        echo
+        echo "Examples:"
+        echo "  sh qpkg list            # Show all available packages"
+        echo "  sh qpkg install nano    # Install nano text editor"
+        echo "  sh qpkg install quickjs # Install QuickJS JavaScript engine"
+        echo "  sh qpkg remove nano     # Remove nano text editor"
+    fi
     echo
-    echo "Commands:"
-    echo "  list, --list            List available packages"
-    echo "  install <package>       Install a package"
-    echo "  remove <package>        Remove an installed package"
-    echo "  update, --update        Update package manifest"
-    echo "  help, --help            Show this help message"
-    echo
-    echo "Examples:"
-    echo "  sh qpkg list            # Show all available packages"
-    echo "  sh qpkg install nano    # Install nano text editor"
-    echo "  sh qpkg install quickjs # Install QuickJS JavaScript engine"
-    echo "  sh qpkg remove nano     # Remove nano text editor"
+    echo "Large Package Support:"
+    echo "  - Progress indicators for downloads >50MB"
+    echo "  - Resume interrupted downloads automatically"
+    echo "  - User confirmation for large packages"
     echo
     echo "Install directory: $INSTALL_DIR"
     echo "Repository: $REPO_URL"
@@ -294,4 +399,4 @@ case "$1" in
     *)
         error "Unknown command: $1. Run 'qpkg help' for usage information."
         ;;
-esac
+esac 
