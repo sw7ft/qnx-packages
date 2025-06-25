@@ -56,7 +56,7 @@ if [ $bins_found -gt 0 ]; then
         if [ -d "$pkg_dir/bin" ]; then
             pkg_name=$(basename "$pkg_dir")
             printf "[qpkg-env]   %s: " "$pkg_name"
-            find "$pkg_dir/bin" -type f -perm +111 -exec basename {} \; | tr '\n' ' '
+            ls "$pkg_dir/bin" | tr '\n' ' '
             echo
         fi
     done
