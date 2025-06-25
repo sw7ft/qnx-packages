@@ -6,7 +6,7 @@
   "api_base": "https://api.github.com/repos/sw7ft/qnx-packages",
   "packages": {
     "quickjs": {
-      "version": "1.0.0", 
+      "version": "1.0.0",
       "description": "Modern ES2023 JavaScript engine",
       "size": "15MB",
       "download_url": "https://github.com/sw7ft/qnx-packages/releases/download/v1.0/QuickJS_QNX8_ARM_Deploy.tar.gz",
@@ -17,7 +17,7 @@
     },
     "mysql": {
       "version": "5.6.49",
-      "description": "Complete database server", 
+      "description": "Complete database server",
       "size": "270MB",
       "download_url": "https://github.com/sw7ft/qnx-packages/releases/download/v1.0/mysql-5.6.49.tar",
       "install_method": "custom_script",
@@ -25,11 +25,141 @@
       "arch": "arm",
       "os": "qnx8"
     },
+    "sdl2": {
+      "version": "2.0.9",
+      "description": "Graphics and multimedia library",
+      "size": "66MB",
+      "download_url": "https://github.com/sw7ft/qnx-packages/releases/download/v1.0/SDL2-2.0.9.tar",
+      "install_method": "extract_and_deploy",
+      "dependencies": [],
+      "arch": "arm",
+      "os": "qnx8"
+    },
     "nano": {
       "version": "5.9",
       "description": "Text editor",
-      "size": "164KB", 
+      "size": "164KB",
       "download_url": "https://github.com/sw7ft/qnx-packages/raw/main/nano/nano_bb10.tar.gz",
+      "install_method": "extract_and_deploy",
+      "dependencies": [],
+      "arch": "arm",
+      "os": "qnx8"
+    },
+    "cmake": {
+      "version": "3.24.2",
+      "description": "Build system generator",
+      "size": "47MB",
+      "download_url": "https://github.com/sw7ft/qnx-packages/raw/main/cmake/cmake-3.24.2-linux-x86_64.tar.gz",
+      "install_method": "extract_and_deploy",
+      "dependencies": [],
+      "arch": "arm",
+      "os": "qnx8"
+    },
+    "duktape": {
+      "version": "2.7.0",
+      "description": "ES5/ES6 JavaScript engine",
+      "size": "188KB",
+      "download_url": "https://github.com/sw7ft/qnx-packages/raw/main/duktape/duktape_bb10.tar.gz",
+      "install_method": "extract_and_deploy",
+      "dependencies": [],
+      "arch": "arm",
+      "os": "qnx8"
+    },
+    "jerryjs": {
+      "version": "3.0.0",
+      "description": "IoT JavaScript engine",
+      "size": "372KB",
+      "download_url": "https://github.com/sw7ft/qnx-packages/raw/main/jerryjs/jerryjs_es6_bb10.tar.gz",
+      "install_method": "extract_and_deploy",
+      "dependencies": [],
+      "arch": "arm",
+      "os": "qnx8"
+    },
+    "php": {
+      "version": "7.4.33",
+      "description": "PHP scripting language",
+      "size": "8MB",
+      "download_url": "https://github.com/sw7ft/qnx-packages/raw/main/php/php-7.4.33-qnx.zip",
+      "install_method": "extract_and_deploy",
+      "dependencies": [],
+      "arch": "arm",
+      "os": "qnx8"
+    },
+    "sshpass": {
+      "version": "1.06",
+      "description": "SSH password authentication",
+      "size": "167KB",
+      "download_url": "https://github.com/sw7ft/qnx-packages/raw/main/sshpass/sshpass-106-modified-berrymuch.tar.gz",
+      "install_method": "extract_and_deploy",
+      "dependencies": [],
+      "arch": "arm",
+      "os": "qnx8"
+    },
+    "netcat": {
+      "version": "1.10",
+      "description": "Network utility",
+      "size": "42KB",
+      "download_url": "https://github.com/sw7ft/qnx-packages/raw/main/netcat/nc.zip",
+      "install_method": "extract_and_deploy",
+      "dependencies": [],
+      "arch": "arm",
+      "os": "qnx8"
+    },
+    "links": {
+      "version": "2.28",
+      "description": "Text-based web browser",
+      "size": "563KB",
+      "download_url": "https://github.com/sw7ft/qnx-packages/raw/main/links/links_bb10.tar.gz",
+      "install_method": "extract_and_deploy",
+      "dependencies": [],
+      "arch": "arm",
+      "os": "qnx8"
+    },
+    "ncurses": {
+      "version": "6.4",
+      "description": "Terminal control library",
+      "size": "19MB",
+      "download_url": "https://github.com/sw7ft/qnx-packages/raw/main/ncurses/ncurses-6.4.tar",
+      "install_method": "extract_and_deploy",
+      "dependencies": [],
+      "arch": "arm",
+      "os": "qnx8"
+    },
+    "audioplayer": {
+      "version": "1.0",
+      "description": "Audio player for BB10",
+      "size": "62KB",
+      "download_url": "https://github.com/sw7ft/qnx-packages/raw/main/audioplayer/audioplayer.zip",
+      "install_method": "extract_and_deploy",
+      "dependencies": [],
+      "arch": "arm",
+      "os": "qnx8"
+    },
+    "rv32ima": {
+      "version": "1.0",
+      "description": "RISC-V RV32IMA emulation",
+      "size": "13MB",
+      "download_url": "https://github.com/sw7ft/qnx-packages/raw/main/rv32ima/bb10-mini-rv32ima-full.zip",
+      "install_method": "extract_and_deploy",
+      "dependencies": [],
+      "arch": "arm",
+      "os": "qnx8"
+    },
+    "x11-research": {
+      "version": "1.0",
+      "description": "X11 research package",
+      "size": "1.7MB",
+      "download_url": "https://github.com/sw7ft/qnx-packages/raw/main/x11-research/bb10_x11_research.zip",
+      "install_method": "extract_and_deploy",
+      "dependencies": [],
+      "arch": "arm",
+      "os": "qnx8"
+    },
+    "x11-xeyes": {
+      "version": "1.0",
+      "description": "X11 Xeyes demo",
+      "size": "2.6MB",
+      "download_url": "https://github.com/sw7ft/qnx-packages/raw/main/x11-xeyes/bb10_x11_xeyes_complete.zip",
       "install_method": "extract_and_deploy",
       "dependencies": [],
       "arch": "arm",
