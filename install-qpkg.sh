@@ -28,6 +28,9 @@ fi
 # Make executable
 chmod +x qpkg 2>/dev/null
 
+# Make qpkg-env.sh executable too
+chmod +x qpkg-env.sh 2>/dev/null
+
 # Download QPKG Environment Helper
 echo "📥 Downloading QPKG environment helper..."
 if command -v curl >/dev/null 2>&1; then
@@ -99,20 +102,20 @@ if [ "$GLOBAL_INSTALL" = true ]; then
     echo "  qpkg remove nano        # Remove nano text editor"
     echo
     echo "📦 Alternative usage:"
-    echo "  sh qpkg list            # Also works"
     echo "  ./qpkg list             # Also works"
+    echo "  sh qpkg list            # Also works"
     echo
     echo "🔧 Environment Setup:"
     echo "  . ./qpkg-env.sh         # Auto-setup PATH for all packages"
 else
     echo "📦 Usage:"
-    echo "  sh qpkg list            # Show available packages"
-    echo "  sh qpkg install nano    # Install nano text editor"
-    echo "  sh qpkg install quickjs # Install QuickJS JavaScript engine"
-    echo "  sh qpkg remove nano     # Remove nano text editor"
+    echo "  ./qpkg list             # Show available packages"
+    echo "  ./qpkg install nano     # Install nano text editor"
+    echo "  ./qpkg install quickjs  # Install QuickJS JavaScript engine"
+    echo "  ./qpkg remove nano      # Remove nano text editor"
     echo
     echo "📦 Alternative usage:"
-    echo "  ./qpkg list             # Also works if permissions allow"
+    echo "  sh qpkg list            # Also works"
     echo
     echo "🔧 Environment Setup:"
     echo "  . ./qpkg-env.sh         # Auto-setup PATH for all packages"

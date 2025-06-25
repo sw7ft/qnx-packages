@@ -329,38 +329,33 @@ install_package() {
             has_lib=true
         fi
         
-        # Auto-setup PATH and provide instructions
+        # Provide setup instructions and auto-source helper
         if [ "$has_bin" = true ] || [ "$has_lib" = true ]; then
             echo
-            warn "🔧 Setting up environment automatically..."
+            warn "🔧 Environment setup available!"
             
-            # Auto-setup PATH and LD_LIBRARY_PATH for current session
+            echo
+            warn "💡 To use $pkg_name commands immediately:"
+            warn "1. Run: . ./qpkg-env.sh  (recommended - sets up all packages)"
             if [ "$has_bin" = true ]; then
-                PATH="$pkg_dir/bin:$PATH"
-                export PATH
-                warn "✅ Added to PATH: $pkg_dir/bin"
+                warn "2. Manual: export PATH=\"$pkg_dir/bin:\$PATH\""
+            fi
+            if [ "$has_lib" = true ]; then
+                warn "3. Manual: export LD_LIBRARY_PATH=\"$pkg_dir/lib:\$LD_LIBRARY_PATH\""
             fi
             
-            if [ "$has_lib" = true ]; then
-                if [ -z "$LD_LIBRARY_PATH" ]; then
-                    LD_LIBRARY_PATH="$pkg_dir/lib"
-                else
-                    LD_LIBRARY_PATH="$pkg_dir/lib:$LD_LIBRARY_PATH"
+            # Auto-run qpkg-env.sh if it exists and we're not in a subshell
+            if [ -f "./qpkg-env.sh" ] && [ "$SHLVL" -le 2 ]; then
+                echo
+                warn "🚀 Auto-running environment setup..."
+                . ./qpkg-env.sh
+                if [ $? -eq 0 ]; then
+                    warn "✅ Environment configured! Commands should now be available."
                 fi
-                export LD_LIBRARY_PATH
-                warn "✅ Added to LD_LIBRARY_PATH: $pkg_dir/lib"
             fi
             
             echo
-            warn "💡 For future sessions:"
-            warn "1. Auto-setup all packages: . ./qpkg-env.sh"
-            warn "2. Add to Term49 profile for permanent setup"
-            if [ "$has_bin" = true ]; then
-                warn "3. Manual: export PATH=\"$pkg_dir/bin:\$PATH\""
-            fi
-            if [ "$has_lib" = true ]; then
-                warn "4. Manual: export LD_LIBRARY_PATH=\"$pkg_dir/lib:\$LD_LIBRARY_PATH\""
-            fi
+            warn "📝 For permanent setup: Add '. ./qpkg-env.sh' to your Term49 profile"
         fi
         
         # Show available executables
