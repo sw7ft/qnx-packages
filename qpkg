@@ -153,6 +153,42 @@ install_package() {
         error "Package '$pkg_name' not found. Run 'qpkg list' to see available packages."
     fi
     
+    # Check if package is already installed
+    pkg_dir="$INSTALL_DIR/$pkg_name"
+    if [ -d "$pkg_dir" ]; then
+        warn "📦 Package '$pkg_name' is already installed at:"
+        warn "    $pkg_dir"
+        echo
+        printf "Choose an option:\n"
+        printf "  [r] Reinstall (remove and install fresh)\n"
+        printf "  [o] Overwrite (install over existing files)\n"
+        printf "  [c] Cancel installation\n"
+        printf "Enter choice [r/o/c]: "
+        read -r choice
+        
+        case "$choice" in
+            [rR]|[rR][eE][iI][nN][sS][tT][aA][lL][lL])
+                log "Removing existing installation..."
+                rm -rf "$pkg_dir" 2>/dev/null
+                if [ $? -ne 0 ]; then
+                    error "Failed to remove existing installation"
+                fi
+                log "Proceeding with fresh installation..."
+                ;;
+            [oO]|[oO][vV][eE][rR][wW][rR][iI][tT][eE])
+                warn "Installing over existing files..."
+                ;;
+            [cC]|[cC][aA][nN][cC][eE][lL]|"")
+                log "Installation cancelled by user"
+                exit 0
+                ;;
+            *)
+                error "Invalid choice. Installation cancelled."
+                ;;
+        esac
+        echo
+    fi
+    
     # Extract package info using simpler parsing
     download_url=$(sed -n "/\"$pkg_name\":/,/^    }/p" "$CACHE_DIR/packages.json" | \
                    grep '"download_url":' | \
@@ -238,7 +274,6 @@ install_package() {
     fi
     
     # Extract package
-    pkg_dir="$INSTALL_DIR/$pkg_name"
     mkdir -p "$pkg_dir" 2>/dev/null || {
         error "Cannot create directory $pkg_dir"
     }
