@@ -127,9 +127,9 @@
     },
     "audioplayer": {
       "version": "1.0",
-      "description": "Audio player for BB10",
+      "description": "Professional audio utilities for QNX 8 ARM",
       "size": "62KB",
-      "download_url": "https://github.com/sw7ft/qnx-packages/raw/main/audioplayer/audioplayer.zip",
+      "download_url": "https://github.com/sw7ft/qnx-packages/raw/main/audioplayer/audioplayer.tar.gz",
       "install_method": "extract_and_deploy",
       "dependencies": [],
       "arch": "arm",
