@@ -59,25 +59,32 @@ if echo "$PATH" | grep -q "$HOME/usr/local/bin"; then
     printf "This allows running 'qpkg' directly instead of 'sh qpkg': "
     read -r install_global
     
-    case "$install_global" in
-        [yY]|[yY][eE][sS])
-            # Create directory if it doesn't exist
-            mkdir -p "$HOME/usr/local/bin" 2>/dev/null
-            if [ -d "$HOME/usr/local/bin" ]; then
-                cp qpkg "$HOME/usr/local/bin/qpkg" 2>/dev/null
-                if [ $? -eq 0 ]; then
-                    echo "✅ QPKG installed to ~/usr/local/bin"
-                    echo "✅ You can now run 'qpkg' directly!"
-                    GLOBAL_INSTALL=true
+            case "$install_global" in
+            [yY]|[yY][eE][sS])
+                # Create directory if it doesn't exist
+                mkdir -p "$HOME/usr/local/bin" 2>/dev/null
+                if [ -d "$HOME/usr/local/bin" ]; then
+                    # Copy both qpkg and qpkg-env.sh
+                    cp qpkg "$HOME/usr/local/bin/qpkg" 2>/dev/null
+                    qpkg_result=$?
+                    cp qpkg-env.sh "$HOME/usr/local/bin/qpkg-env.sh" 2>/dev/null
+                    env_result=$?
+                    
+                    if [ $qpkg_result -eq 0 ] && [ $env_result -eq 0 ]; then
+                        echo "✅ QPKG installed to ~/usr/local/bin"
+                        echo "✅ Environment helper installed to ~/usr/local/bin"
+                        echo "✅ You can now run 'qpkg' directly from anywhere!"
+                        echo "✅ Run 'qpkg-env.sh' from any directory to set up package paths"
+                        GLOBAL_INSTALL=true
+                    else
+                        echo "⚠️  Could not install globally, using local installation"
+                        GLOBAL_INSTALL=false
+                    fi
                 else
-                    echo "⚠️  Could not install globally, using local installation"
+                    echo "⚠️  Could not create ~/usr/local/bin, using local installation"
                     GLOBAL_INSTALL=false
                 fi
-            else
-                echo "⚠️  Could not create ~/usr/local/bin, using local installation"
-                GLOBAL_INSTALL=false
-            fi
-            ;;
+                ;;
         *)
             echo "📁 Using local installation"
             GLOBAL_INSTALL=false
@@ -106,7 +113,8 @@ if [ "$GLOBAL_INSTALL" = true ]; then
     echo "  sh qpkg list            # Also works"
     echo
     echo "🔧 Environment Setup:"
-    echo "  . ./qpkg-env.sh         # Auto-setup PATH for all packages"
+    echo "  qpkg-env.sh             # Auto-setup PATH for all packages (global)"
+    echo "  . ./qpkg-env.sh         # Auto-setup PATH for all packages (local fallback)"
 else
     echo "📦 Usage:"
     echo "  ./qpkg list             # Show available packages"
