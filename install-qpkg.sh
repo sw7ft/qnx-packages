@@ -267,13 +267,24 @@ setup_environment() {
         return 0
     fi
     
-    # Add QPKG configuration
+    # Add QPKG configuration using a function for reliable path expansion
     {
         echo
         echo "# QPKG Package Manager - Auto-generated configuration"
         echo "# Added by QPKG installer on $(date)"
-        echo "export PATH=\"\$PATH:\$HOME/qnx-packages/*/bin\""
-        echo "export LD_LIBRARY_PATH=\"\$LD_LIBRARY_PATH:\$HOME/qnx-packages/*/lib\""
+        echo "qpkg_setup_env() {"
+        echo "    if [ -d \"\$HOME/qnx-packages\" ]; then"
+        echo "        for pkg_dir in \"\$HOME/qnx-packages\"/*; do"
+        echo "            if [ -d \"\$pkg_dir/bin\" ]; then"
+        echo "                export PATH=\"\$PATH:\$pkg_dir/bin\""
+        echo "            fi"
+        echo "            if [ -d \"\$pkg_dir/lib\" ]; then"
+        echo "                export LD_LIBRARY_PATH=\"\$LD_LIBRARY_PATH:\$pkg_dir/lib\""
+        echo "            fi"
+        echo "        done"
+        echo "    fi"
+        echo "}"
+        echo "qpkg_setup_env"
         
         if [ "$GLOBAL_INSTALL" = true ] && [ "$ENV_HELPER_AVAILABLE" = true ]; then
             echo "# Optional: Source QPKG environment helper"
@@ -298,8 +309,19 @@ setup_environment() {
         {
             echo
             echo "# QPKG Package Manager paths"
-            echo "export PATH=\"\$PATH:\$HOME/qnx-packages/*/bin\""
-            echo "export LD_LIBRARY_PATH=\"\$LD_LIBRARY_PATH:\$HOME/qnx-packages/*/lib\""
+            echo "qpkg_setup_env() {"
+            echo "    if [ -d \"\$HOME/qnx-packages\" ]; then"
+            echo "        for pkg_dir in \"\$HOME/qnx-packages\"/*; do"
+            echo "            if [ -d \"\$pkg_dir/bin\" ]; then"
+            echo "                export PATH=\"\$PATH:\$pkg_dir/bin\""
+            echo "            fi"
+            echo "            if [ -d \"\$pkg_dir/lib\" ]; then"
+            echo "                export LD_LIBRARY_PATH=\"\$LD_LIBRARY_PATH:\$pkg_dir/lib\""
+            echo "            fi"
+            echo "        done"
+            echo "    fi"
+            echo "}"
+            echo "qpkg_setup_env"
         } >> "$bashrc_file" 2>/dev/null
     fi
 }
@@ -310,8 +332,19 @@ show_manual_setup_instructions() {
     print_warning "Manual setup required:"
     echo "Add these lines to your ~/.profile:"
     echo
-    echo "export PATH=\"\$PATH:\$HOME/qnx-packages/*/bin\""
-    echo "export LD_LIBRARY_PATH=\"\$LD_LIBRARY_PATH:\$HOME/qnx-packages/*/lib\""
+    echo "qpkg_setup_env() {"
+    echo "    if [ -d \"\$HOME/qnx-packages\" ]; then"
+    echo "        for pkg_dir in \"\$HOME/qnx-packages\"/*; do"
+    echo "            if [ -d \"\$pkg_dir/bin\" ]; then"
+    echo "                export PATH=\"\$PATH:\$pkg_dir/bin\""
+    echo "            fi"
+    echo "            if [ -d \"\$pkg_dir/lib\" ]; then"
+    echo "                export LD_LIBRARY_PATH=\"\$LD_LIBRARY_PATH:\$pkg_dir/lib\""
+    echo "            fi"
+    echo "        done"
+    echo "    fi"
+    echo "}"
+    echo "qpkg_setup_env"
     echo
 }
 
