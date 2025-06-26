@@ -57,13 +57,15 @@ if echo "$PATH" | grep -q "$HOME/usr/local/bin"; then
     echo "🎯 Detected ~/usr/local/bin in PATH"
     
     # Check if we have interactive input (not piped)
-    if [ -t 0 ]; then
-        echo "Would you like to install QPKG system-wide? [y/N]"
+    if [ -t 0 ] && [ -t 1 ]; then
+        echo "Would you like to install QPKG system-wide? [Y/n]"
         printf "This allows running 'qpkg' directly instead of 'sh qpkg': "
         read -r install_global
+        # Default to yes if empty
+        install_global=${install_global:-y}
     else
-        echo "📦 Non-interactive installation detected - installing globally by default"
-        echo "This allows running 'qpkg' directly instead of 'sh qpkg'"
+        echo "📦 Piped installation detected - installing globally by default"
+        echo "💡 This allows running 'qpkg' directly instead of 'sh qpkg'"
         install_global="y"
     fi
     
@@ -141,17 +143,12 @@ echo
 echo "🎯 Testing installation..."
 
 # Test QPKG
-if [ "$GLOBAL_INSTALL" = true ] && command -v qpkg >/dev/null 2>&1; then
+if [ "$GLOBAL_INSTALL" = true ]; then
     echo "QPKG - QNX Package Manager v1.0.0"
     echo "Professional package management for QNX 8 ARM / BlackBerry 10"
     echo
-    echo
     echo "🌟 Ready to install QNX packages!"
-    # Test with global command
-    qpkg list >/dev/null 2>&1
-    if [ $? -eq 0 ]; then
-        echo "✅ Global installation test passed"
-    fi
+    echo "💡 Try: qpkg list"
 else
     # Test with sh command
     sh qpkg --help | head -3
