@@ -108,6 +108,37 @@ fi
 echo
 echo "✅ QPKG installed successfully!"
 echo "✅ Environment helper (qpkg-env.sh) ready for use"
+
+# Setup permanent environment in ~/.profile
+echo "🔧 Setting up permanent environment..."
+QPKG_INSTALL_DIR="$(pwd)/qnx-packages"
+
+# Create profile backup if it doesn't exist
+if [ -f "$HOME/.profile" ] && [ ! -f "$HOME/.profile.bak" ]; then
+    cp "$HOME/.profile" "$HOME/.profile.bak" 2>/dev/null
+    echo "✅ Created ~/.profile backup"
+fi
+
+# Check if QPKG paths are already in profile
+if [ -f "$HOME/.profile" ] && grep -q "qnx-packages" "$HOME/.profile" 2>/dev/null; then
+    echo "⚠️  QPKG paths already in ~/.profile - skipping"
+else
+    # Add QPKG paths to profile
+    cat >> "$HOME/.profile" << EOF
+
+# QPKG Package Manager - Auto-generated paths
+export PATH="\$PATH:$QPKG_INSTALL_DIR/*/bin"
+export LD_LIBRARY_PATH="\$LD_LIBRARY_PATH:$QPKG_INSTALL_DIR/*/lib"
+EOF
+    
+    if [ $? -eq 0 ]; then
+        echo "✅ Added QPKG paths to ~/.profile"
+        echo "✅ All installed packages will work automatically!"
+    else
+        echo "⚠️  Could not modify ~/.profile - manual setup required"
+    fi
+fi
+
 echo
 
 # Show appropriate usage instructions
@@ -123,8 +154,8 @@ if [ "$GLOBAL_INSTALL" = true ]; then
     echo "  sh qpkg list            # Also works"
     echo
     echo "🔧 Environment Setup:"
-    echo "  qpkg-env.sh             # Auto-setup PATH for all packages (global)"
-    echo "  . ./qpkg-env.sh         # Auto-setup PATH for all packages (local fallback)"
+    echo "  ✅ Automatically configured in ~/.profile"
+    echo "  💡 Start new shell or run: . ~/.profile"
 else
     echo "📦 Usage:"
     echo "  ./qpkg list             # Show available packages"
@@ -136,7 +167,8 @@ else
     echo "  sh qpkg list            # Also works"
     echo
     echo "🔧 Environment Setup:"
-    echo "  . ./qpkg-env.sh         # Auto-setup PATH for all packages"
+    echo "  ✅ Automatically configured in ~/.profile"
+    echo "  💡 Start new shell or run: . ~/.profile"
 fi
 
 echo
@@ -149,6 +181,7 @@ if [ "$GLOBAL_INSTALL" = true ]; then
     echo
     echo "🌟 Ready to install QNX packages!"
     echo "💡 Try: qpkg list"
+    echo "🔄 For installed packages to work: start new shell or run '. ~/.profile'"
 else
     # Test with sh command
     sh qpkg --help | head -3
