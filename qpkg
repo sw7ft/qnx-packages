@@ -329,33 +329,21 @@ install_package() {
             has_lib=true
         fi
         
-        # Provide setup instructions and auto-source helper
+        # Provide setup instructions
         if [ "$has_bin" = true ] || [ "$has_lib" = true ]; then
             echo
-            warn "🔧 Environment setup available!"
-            
+            warn "🔧 Environment setup required to use commands!"
             echo
-            warn "💡 To use $pkg_name commands immediately:"
-            warn "1. Run: . ./qpkg-env.sh  (recommended - sets up all packages)"
-            if [ "$has_bin" = true ]; then
-                warn "2. Manual: export PATH=\"$pkg_dir/bin:\$PATH\""
+            warn "💡 To use $pkg_name commands immediately, run:"
+            if command -v qpkg-env.sh >/dev/null 2>&1; then
+                warn "   qpkg-env.sh"
+                warn "   (This sets up PATH for all QPKG packages)"
+            else
+                warn "   . ./qpkg-env.sh"
+                warn "   (This sets up PATH for all QPKG packages)"
             fi
-            if [ "$has_lib" = true ]; then
-                warn "3. Manual: export LD_LIBRARY_PATH=\"$pkg_dir/lib:\$LD_LIBRARY_PATH\""
-            fi
-            
-            # Auto-run qpkg-env.sh if it exists and we're not in a subshell
-            if [ -f "./qpkg-env.sh" ] && [ "$SHLVL" -le 2 ]; then
-                echo
-                warn "🚀 Auto-running environment setup..."
-                . ./qpkg-env.sh
-                if [ $? -eq 0 ]; then
-                    warn "✅ Environment configured! Commands should now be available."
-                fi
-            fi
-            
             echo
-            warn "📝 For permanent setup: Add '. ./qpkg-env.sh' to your Term49 profile"
+            warn "📝 For permanent setup: Add the above command to your Term49 profile"
         fi
         
         # Show available executables
