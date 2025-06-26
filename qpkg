@@ -186,7 +186,11 @@ BIN_PATH="$SCRIPT_DIR/$BIN_NAME"
 
 # Export package lib dir so loader can find bundled .so files
 if [ -d "$PKG_DIR/lib" ]; then
-    export LD_LIBRARY_PATH="$PKG_DIR/lib:${LD_LIBRARY_PATH:-}"
+    if [ -z "$LD_LIBRARY_PATH" ]; then
+        export LD_LIBRARY_PATH="$PKG_DIR/lib"
+    else
+        export LD_LIBRARY_PATH="$PKG_DIR/lib:$LD_LIBRARY_PATH"
+    fi
 fi
 
 # Capture caller's directory before we chdir
