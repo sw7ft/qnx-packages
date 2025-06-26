@@ -4,7 +4,7 @@
 # Source this file to add all installed QPKG packages to your PATH and LD_LIBRARY_PATH
 # Usage: . ./qpkg-env.sh  or  source ./qpkg-env.sh
 
-QPKG_BASE_DIR="./qnx-packages"
+QPKG_BASE_DIR="$HOME/qnx-packages"
 
 if [ ! -d "$QPKG_BASE_DIR" ]; then
     echo "[qpkg-env] No QPKG packages directory found at $QPKG_BASE_DIR"

@@ -249,7 +249,8 @@ install_globally() {
 setup_environment() {
     print_info "Setting up permanent environment configuration..."
     
-    local qpkg_install_dir="$(pwd)/qnx-packages"
+    # Use a consistent installation directory regardless of where script is run
+    local qpkg_install_dir="$HOME/qnx-packages"
     local profile_file="$HOME/.profile"
     local bashrc_file="$HOME/.bashrc"
     
@@ -271,8 +272,8 @@ setup_environment() {
         echo
         echo "# QPKG Package Manager - Auto-generated configuration"
         echo "# Added by QPKG installer on $(date)"
-        echo "export PATH=\"\$PATH:$qpkg_install_dir/*/bin\""
-        echo "export LD_LIBRARY_PATH=\"\$LD_LIBRARY_PATH:$qpkg_install_dir/*/lib\""
+        echo "export PATH=\"\$PATH:\$HOME/qnx-packages/*/bin\""
+        echo "export LD_LIBRARY_PATH=\"\$LD_LIBRARY_PATH:\$HOME/qnx-packages/*/lib\""
         
         if [ "$GLOBAL_INSTALL" = true ] && [ "$ENV_HELPER_AVAILABLE" = true ]; then
             echo "# Optional: Source QPKG environment helper"
@@ -297,8 +298,8 @@ setup_environment() {
         {
             echo
             echo "# QPKG Package Manager paths"
-            echo "export PATH=\"\$PATH:$qpkg_install_dir/*/bin\""
-            echo "export LD_LIBRARY_PATH=\"\$LD_LIBRARY_PATH:$qpkg_install_dir/*/lib\""
+            echo "export PATH=\"\$PATH:\$HOME/qnx-packages/*/bin\""
+            echo "export LD_LIBRARY_PATH=\"\$LD_LIBRARY_PATH:\$HOME/qnx-packages/*/lib\""
         } >> "$bashrc_file" 2>/dev/null
     fi
 }
@@ -309,8 +310,8 @@ show_manual_setup_instructions() {
     print_warning "Manual setup required:"
     echo "Add these lines to your ~/.profile:"
     echo
-    echo "export PATH=\"\$PATH:$(pwd)/qnx-packages/*/bin\""
-    echo "export LD_LIBRARY_PATH=\"\$LD_LIBRARY_PATH:$(pwd)/qnx-packages/*/lib\""
+    echo "export PATH=\"\$PATH:\$HOME/qnx-packages/*/bin\""
+    echo "export LD_LIBRARY_PATH=\"\$LD_LIBRARY_PATH:\$HOME/qnx-packages/*/lib\""
     echo
 }
 
