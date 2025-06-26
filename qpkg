@@ -160,57 +160,74 @@ create_wrapper_script() {
     local binary_name=$(basename "$original_binary")
     local wrapper_script="$pkg_dir/bin/$binary_name"
     local original_backup="$pkg_dir/bin/${binary_name}.bin"
-    
-    # Rename original binary to .bin
+
+    # Rename original binary to .bin (keep same permissions)
     if ! mv "$original_binary" "$original_backup" 2>/dev/null; then
         warn "Failed to backup $binary_name - skipping wrapper creation"
         return 1
     fi
-    
-    # Create wrapper script
+
+    # Create robust wrapper script that preserves caller cwd while satisfying binary's relative-path expectations
     cat > "$wrapper_script" << 'EOF'
 #!/bin/sh
 
 # QPKG Auto-generated wrapper script
-# This script automatically sets up the library environment for the binary
+# This wrapper ensures the bundled binary is executed from its own directory
+# while preserving the caller's working directory semantics and properly
+# setting up library search paths.
 
-# Get the directory where this script is located
+# Directory of this wrapper (..../bin)
 SCRIPT_DIR="$(cd "$(dirname "$0")" && pwd)"
 PKG_DIR="$(dirname "$SCRIPT_DIR")"
 
-# Set up library path to include package lib directory
+# Original binary (renamed with .bin suffix during installation)
+BIN_NAME="BINARY_NAME.bin"
+BIN_PATH="$SCRIPT_DIR/$BIN_NAME"
+
+# Export package lib dir so loader can find bundled .so files
 if [ -d "$PKG_DIR/lib" ]; then
-    export LD_LIBRARY_PATH="$PKG_DIR/lib:$LD_LIBRARY_PATH"
+    export LD_LIBRARY_PATH="$PKG_DIR/lib:${LD_LIBRARY_PATH:-}"
 fi
 
-# Copy any required libraries to satisfy relative path dependencies
-if [ -d "$PKG_DIR/lib" ] && [ ! -f "$PKG_DIR/libnixtla-audio.so" ]; then
-    for lib in "$PKG_DIR/lib"/*.so*; do
-        if [ -f "$lib" ]; then
-            lib_name=$(basename "$lib")
-            # Create symlink in package root for relative path access
-            ln -sf "lib/$lib_name" "$PKG_DIR/$lib_name" 2>/dev/null
-        fi
-    done
-fi
+# Capture caller's directory before we chdir
+ORIG_PWD="$(pwd)"
 
-# Change to the binary directory for relative path dependencies
-cd "$SCRIPT_DIR"
+# Re-build argument list so that any relative paths provided by the user are
+# converted to absolute paths based on ORIG_PWD. This prevents them from
+# breaking after we cd to SCRIPT_DIR.
+ABS_ARGS=""
+for arg in "$@"; do
+    case "$arg" in
+        -*)         ABS_ARGS="$ABS_ARGS \"$arg\"" ;;  # flags, leave untouched
+        /*)         ABS_ARGS="$ABS_ARGS \"$arg\"" ;;  # already absolute
+        *)
+            if [ -e "$ORIG_PWD/$arg" ]; then
+                ABS_ARGS="$ABS_ARGS \"$ORIG_PWD/$arg\""
+            else
+                ABS_ARGS="$ABS_ARGS \"$arg\""
+            fi
+            ;;
+    esac
+done
 
-# Execute the original binary with all arguments
-exec "./BINARY_NAME.bin" "$@"
+# Switch to binary directory for its relative resource lookups
+cd "$SCRIPT_DIR" || {
+    echo "[qpkg-wrapper] Cannot enter binary directory $SCRIPT_DIR" >&2
+    exit 1
+}
+
+# Exec the real binary with transformed arguments
+# shellcheck disable=SC2086  # we deliberately rely on word-splitting for ABS_ARGS
+eval exec "\"$BIN_PATH\"" $ABS_ARGS
 EOF
-    
-    # Replace BINARY_NAME placeholder with actual binary name
-    sed -i "s/BINARY_NAME/$binary_name/g" "$wrapper_script" 2>/dev/null || {
-        # Fallback for systems without sed -i
-        sed "s/BINARY_NAME/$binary_name/g" "$wrapper_script" > "$wrapper_script.tmp" && \
-        mv "$wrapper_script.tmp" "$wrapper_script"
-    }
-    
-    # Make wrapper executable
+
+    # Replace BINARY_NAME placeholder with actual binary name (safe sed fallback)
+    if command -v sed >/dev/null 2>&1; then
+        sed -i "s/BINARY_NAME/$binary_name/g" "$wrapper_script" 2>/dev/null || \
+        { sed "s/BINARY_NAME/$binary_name/g" "$wrapper_script" > "$wrapper_script.tmp" && mv "$wrapper_script.tmp" "$wrapper_script"; }
+    fi
+
     chmod +x "$wrapper_script" 2>/dev/null
-    
     return 0
 }
 
