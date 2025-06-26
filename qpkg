@@ -195,8 +195,11 @@ if [ -d "$PKG_DIR/lib" ] && [ ! -f "$PKG_DIR/libnixtla-audio.so" ]; then
     done
 fi
 
+# Change to the binary directory for relative path dependencies
+cd "$SCRIPT_DIR"
+
 # Execute the original binary with all arguments
-exec "$SCRIPT_DIR/BINARY_NAME.bin" "$@"
+exec "./BINARY_NAME.bin" "$@"
 EOF
     
     # Replace BINARY_NAME placeholder with actual binary name
