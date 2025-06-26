@@ -76,4 +76,5 @@ Audio utilities and custom library - License details to be confirmed with packag
 
 **Package Size**: 62KB  
 **QPKG Category**: Media  
+**Auto-Wrapper**: ✅ Automatically handles library dependencies  
 **Maintainer**: SW7FT QNX Packages 

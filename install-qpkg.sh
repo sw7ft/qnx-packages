@@ -2,193 +2,443 @@
 
 # QPKG Installer for BlackBerry 10 / QNX 8 ARM
 # Professional package manager installation
+# Version 2.0 - Enhanced installer with robust error handling
 
-echo "🚀 QPKG Installer for BlackBerry 10"
-echo "Installing QNX Package Manager..."
-echo
+set -e  # Exit on any error
 
-# Download QPKG
-echo "📥 Downloading QPKG..."
-if command -v curl >/dev/null 2>&1; then
-    curl -L -o qpkg https://raw.githubusercontent.com/sw7ft/qnx-packages/main/qpkg 2>/dev/null
-    result=$?
-elif command -v wget >/dev/null 2>&1; then
-    wget -O qpkg https://raw.githubusercontent.com/sw7ft/qnx-packages/main/qpkg 2>/dev/null
-    result=$?
+# Color codes for better output (if terminal supports it)
+if [ -t 1 ]; then
+    RED='\033[0;31m'
+    GREEN='\033[0;32m'
+    YELLOW='\033[1;33m'
+    BLUE='\033[0;34m'
+    NC='\033[0m' # No Color
 else
-    echo "❌ Error: Neither curl nor wget found"
-    exit 1
+    RED=''
+    GREEN=''
+    YELLOW=''
+    BLUE=''
+    NC=''
 fi
 
-if [ $result -ne 0 ]; then
-    echo "❌ Failed to download QPKG"
-    exit 1
-fi
+# Helper functions
+print_status() {
+    echo "${GREEN}✅${NC} $1"
+}
 
-# Make executable
-chmod +x qpkg 2>/dev/null
+print_warning() {
+    echo "${YELLOW}⚠️${NC} $1"
+}
 
-# Make qpkg-env.sh executable too
-chmod +x qpkg-env.sh 2>/dev/null
+print_error() {
+    echo "${RED}❌${NC} $1"
+}
 
-# Download QPKG Environment Helper
-echo "📥 Downloading QPKG environment helper..."
-if command -v curl >/dev/null 2>&1; then
-    curl -L -o qpkg-env.sh https://raw.githubusercontent.com/sw7ft/qnx-packages/main/qpkg-env.sh 2>/dev/null
-    env_result=$?
-elif command -v wget >/dev/null 2>&1; then
-    wget -O qpkg-env.sh https://raw.githubusercontent.com/sw7ft/qnx-packages/main/qpkg-env.sh 2>/dev/null
-    env_result=$?
-else
-    # This shouldn't happen since we already checked above
-    env_result=1
-fi
+print_info() {
+    echo "${BLUE}💡${NC} $1"
+}
 
-if [ $env_result -eq 0 ]; then
-    echo "✅ Environment helper downloaded successfully"
-else
-    echo "⚠️  Failed to download environment helper (optional)"
-    echo "    You can download it manually later with:"
-    echo "    curl -L -o qpkg-env.sh https://raw.githubusercontent.com/sw7ft/qnx-packages/main/qpkg-env.sh"
-fi
+print_header() {
+    echo
+    echo "${BLUE}🚀 QPKG Installer for BlackBerry 10${NC}"
+    echo "Installing QNX Package Manager v2.0 with Auto-Wrapper Technology..."
+    echo
+}
 
-# Check if user has ~/usr/local/bin in PATH (common in Term49)
-if echo "$PATH" | grep -q "$HOME/usr/local/bin"; then
-    echo "🎯 Detected ~/usr/local/bin in PATH"
+# Detect BB10/Term49 environment
+detect_environment() {
+    TERM49_DETECTED=false
+    BB10_DETECTED=false
     
-    # Check if we have interactive input (not piped)
-    if [ -t 0 ] && [ -t 1 ]; then
-        echo "Would you like to install QPKG system-wide? [Y/n]"
-        printf "This allows running 'qpkg' directly instead of 'sh qpkg': "
-        read -r install_global
-        # Default to yes if empty
-        install_global=${install_global:-y}
-    else
-        echo "📦 Piped installation detected - installing globally by default"
-        echo "💡 This allows running 'qpkg' directly instead of 'sh qpkg'"
-        install_global="y"
+    # Check for Term49 specific indicators
+    if [ -n "$TERM" ] && echo "$TERM" | grep -q "xterm"; then
+        if [ -d "/base/usr/bin" ] || [ -f "/usr/bin/blackberry-launcher" ]; then
+            BB10_DETECTED=true
+            if [ -n "$QTDIR" ] || echo "$PATH" | grep -q "Term49"; then
+                TERM49_DETECTED=true
+            fi
+        fi
     fi
     
-            case "$install_global" in
-            [yY]|[yY][eE][sS])
-                # Create directory if it doesn't exist
-                mkdir -p "$HOME/usr/local/bin" 2>/dev/null
-                if [ -d "$HOME/usr/local/bin" ]; then
-                    # Copy both qpkg and qpkg-env.sh
-                    cp qpkg "$HOME/usr/local/bin/qpkg" 2>/dev/null
-                    qpkg_result=$?
-                    cp qpkg-env.sh "$HOME/usr/local/bin/qpkg-env.sh" 2>/dev/null
-                    env_result=$?
-                    
-                    if [ $qpkg_result -eq 0 ] && [ $env_result -eq 0 ]; then
-                        echo "✅ QPKG installed to ~/usr/local/bin"
-                        echo "✅ Environment helper installed to ~/usr/local/bin"
-                        echo "✅ You can now run 'qpkg' directly from anywhere!"
-                        echo "✅ Run 'qpkg-env.sh' from any directory to set up package paths"
-                        GLOBAL_INSTALL=true
-                    else
-                        echo "⚠️  Could not install globally, using local installation"
-                        GLOBAL_INSTALL=false
-                    fi
-                else
-                    echo "⚠️  Could not create ~/usr/local/bin, using local installation"
-                    GLOBAL_INSTALL=false
+    # Check for common BB10 paths
+    if echo "$PATH" | grep -q "$HOME/usr/local/bin"; then
+        PATH_HAS_USR_LOCAL=true
+    else
+        PATH_HAS_USR_LOCAL=false
+    fi
+    
+    if [ "$BB10_DETECTED" = true ]; then
+        print_status "BlackBerry 10 environment detected"
+        if [ "$TERM49_DETECTED" = true ]; then
+            print_status "Term49 terminal environment detected"
+        fi
+    fi
+}
+
+# Check system requirements
+check_requirements() {
+    print_info "Checking system requirements..."
+    
+    # Check for download tools
+    if command -v curl >/dev/null 2>&1; then
+        DOWNLOAD_TOOL="curl"
+        print_status "curl found for downloads"
+    elif command -v wget >/dev/null 2>&1; then
+        DOWNLOAD_TOOL="wget"
+        print_status "wget found for downloads"
+    else
+        print_error "Neither curl nor wget found - cannot download files"
+        exit 1
+    fi
+    
+    # Check shell compatibility
+    if [ -z "$BASH_VERSION" ]; then
+        print_status "POSIX shell detected (BB10 compatible)"
+    else
+        print_warning "Bash detected - ensure BB10 compatibility"
+    fi
+    
+    # Check write permissions
+    if [ ! -w "$(pwd)" ]; then
+        print_error "No write permission in current directory"
+        exit 1
+    fi
+    
+    print_status "System requirements check passed"
+}
+
+# Download files with progress and retry
+download_file() {
+    local url="$1"
+    local output="$2"
+    local description="$3"
+    local max_attempts=3
+    local attempt=1
+    
+    print_info "Downloading $description..."
+    
+    while [ $attempt -le $max_attempts ]; do
+        if [ $attempt -gt 1 ]; then
+            print_warning "Retry attempt $attempt of $max_attempts..."
+        fi
+        
+        case "$DOWNLOAD_TOOL" in
+            curl)
+                if curl -L --fail --show-error --silent -o "$output" "$url" 2>/dev/null; then
+                    print_status "$description downloaded successfully"
+                    return 0
                 fi
                 ;;
-        *)
-            echo "📁 Using local installation"
-            GLOBAL_INSTALL=false
-            ;;
-    esac
-else
-    echo "📁 Installing locally (~/usr/local/bin not in PATH)"
+            wget)
+                if wget -q -O "$output" "$url" 2>/dev/null; then
+                    print_status "$description downloaded successfully"
+                    return 0
+                fi
+                ;;
+        esac
+        
+        attempt=$((attempt + 1))
+        if [ $attempt -le $max_attempts ]; then
+            sleep 2
+        fi
+    done
+    
+    print_error "Failed to download $description after $max_attempts attempts"
+    return 1
+}
+
+# Download core QPKG files
+download_qpkg_files() {
+    local base_url="https://raw.githubusercontent.com/sw7ft/qnx-packages/main"
+    
+    # Download main qpkg script
+    if ! download_file "$base_url/qpkg" "qpkg" "QPKG main script"; then
+        exit 1
+    fi
+    
+    # Download environment helper
+    if ! download_file "$base_url/qpkg-env.sh" "qpkg-env.sh" "QPKG environment helper"; then
+        print_warning "Environment helper download failed (optional component)"
+        ENV_HELPER_AVAILABLE=false
+    else
+        ENV_HELPER_AVAILABLE=true
+    fi
+    
+    # Make files executable
+    chmod +x qpkg 2>/dev/null || {
+        print_error "Could not make qpkg executable"
+        exit 1
+    }
+    
+    if [ "$ENV_HELPER_AVAILABLE" = true ]; then
+        chmod +x qpkg-env.sh 2>/dev/null || {
+            print_warning "Could not make qpkg-env.sh executable"
+        }
+    fi
+    
+    print_status "All QPKG files downloaded and configured"
+}
+
+# Determine installation type and perform installation
+perform_installation() {
     GLOBAL_INSTALL=false
-fi
+    
+    if [ "$PATH_HAS_USR_LOCAL" = true ]; then
+        print_status "Detected ~/usr/local/bin in PATH"
+        
+        # Interactive installation choice
+        if [ -t 0 ] && [ -t 1 ]; then
+            echo
+            echo "Would you like to install QPKG system-wide to ~/usr/local/bin?"
+            echo "This allows running 'qpkg' directly instead of './qpkg' or 'sh qpkg'"
+            printf "Install globally? [Y/n]: "
+            read -r install_choice
+            install_choice=${install_choice:-y}
+        else
+            print_info "Non-interactive installation - using global install by default"
+            install_choice="y"
+        fi
+        
+        case "$install_choice" in
+            [yY]|[yY][eE][sS])
+                install_globally
+                ;;
+            *)
+                print_info "Using local installation"
+                ;;
+        esac
+    else
+        print_info "Installing locally (~/usr/local/bin not in PATH)"
+    fi
+}
 
-echo
-echo "✅ QPKG installed successfully!"
-echo "✅ Environment helper (qpkg-env.sh) ready for use"
+# Install QPKG globally
+install_globally() {
+    local target_dir="$HOME/usr/local/bin"
+    
+    # Create directory if needed
+    if [ ! -d "$target_dir" ]; then
+        mkdir -p "$target_dir" 2>/dev/null || {
+            print_warning "Could not create $target_dir - using local installation"
+            return 1
+        }
+    fi
+    
+    # Copy main script
+    if cp qpkg "$target_dir/qpkg" 2>/dev/null; then
+        print_status "QPKG installed to ~/usr/local/bin"
+        GLOBAL_INSTALL=true
+    else
+        print_warning "Could not install qpkg globally - using local installation"
+        return 1
+    fi
+    
+    # Copy environment helper if available
+    if [ "$ENV_HELPER_AVAILABLE" = true ]; then
+        if cp qpkg-env.sh "$target_dir/qpkg-env.sh" 2>/dev/null; then
+            print_status "Environment helper installed globally"
+        else
+            print_warning "Could not install environment helper globally"
+        fi
+    fi
+    
+    print_status "Global installation completed successfully"
+}
 
-# Setup permanent environment in ~/.profile
-echo "🔧 Setting up permanent environment..."
-QPKG_INSTALL_DIR="$(pwd)/qnx-packages"
-
-# Create profile backup if it doesn't exist
-if [ -f "$HOME/.profile" ] && [ ! -f "$HOME/.profile.bak" ]; then
-    cp "$HOME/.profile" "$HOME/.profile.bak" 2>/dev/null
-    echo "✅ Created ~/.profile backup"
-fi
-
-# Check if QPKG paths are already in profile
-if [ -f "$HOME/.profile" ] && grep -q "qnx-packages" "$HOME/.profile" 2>/dev/null; then
-    echo "⚠️  QPKG paths already in ~/.profile - skipping"
-else
-    # Add QPKG paths to profile
-    cat >> "$HOME/.profile" << EOF
-
-# QPKG Package Manager - Auto-generated paths
-export PATH="\$PATH:$QPKG_INSTALL_DIR/*/bin"
-export LD_LIBRARY_PATH="\$LD_LIBRARY_PATH:$QPKG_INSTALL_DIR/*/lib"
-EOF
+# Setup environment in user profile
+setup_environment() {
+    print_info "Setting up permanent environment configuration..."
+    
+    local qpkg_install_dir="$(pwd)/qnx-packages"
+    local profile_file="$HOME/.profile"
+    local bashrc_file="$HOME/.bashrc"
+    
+    # Backup existing profile
+    if [ -f "$profile_file" ] && [ ! -f "$profile_file.qpkg-backup" ]; then
+        cp "$profile_file" "$profile_file.qpkg-backup" 2>/dev/null && {
+            print_status "Created ~/.profile backup"
+        }
+    fi
+    
+    # Check if QPKG is already configured
+    if [ -f "$profile_file" ] && grep -q "QPKG Package Manager" "$profile_file" 2>/dev/null; then
+        print_warning "QPKG environment already configured in ~/.profile"
+        return 0
+    fi
+    
+    # Add QPKG configuration
+    {
+        echo
+        echo "# QPKG Package Manager - Auto-generated configuration"
+        echo "# Added by QPKG installer on $(date)"
+        echo "export PATH=\"\$PATH:$qpkg_install_dir/*/bin\""
+        echo "export LD_LIBRARY_PATH=\"\$LD_LIBRARY_PATH:$qpkg_install_dir/*/lib\""
+        
+        if [ "$GLOBAL_INSTALL" = true ] && [ "$ENV_HELPER_AVAILABLE" = true ]; then
+            echo "# Optional: Source QPKG environment helper"
+            echo "# . qpkg-env.sh  # Uncomment to auto-load package environments"
+        fi
+        
+        echo "# End QPKG configuration"
+        echo
+    } >> "$profile_file" 2>/dev/null
     
     if [ $? -eq 0 ]; then
-        echo "✅ Added QPKG paths to ~/.profile"
-        echo "✅ All installed packages will work automatically!"
+        print_status "Environment configuration added to ~/.profile"
+        print_info "All installed packages will be available in new shells"
     else
-        echo "⚠️  Could not modify ~/.profile - manual setup required"
+        print_warning "Could not modify ~/.profile - manual setup may be required"
+        show_manual_setup_instructions
     fi
-fi
-
-echo
-
-# Show appropriate usage instructions
-if [ "$GLOBAL_INSTALL" = true ]; then
-    echo "📦 Usage (global installation):"
-    echo "  qpkg list               # Show available packages"
-    echo "  qpkg install nano       # Install nano text editor"
-    echo "  qpkg install quickjs    # Install QuickJS JavaScript engine"
-    echo "  qpkg remove nano        # Remove nano text editor"
-    echo
-    echo "📦 Alternative usage:"
-    echo "  ./qpkg list             # Also works"
-    echo "  sh qpkg list            # Also works"
-    echo
-    echo "🔧 Environment Setup:"
-    echo "  ✅ Automatically configured in ~/.profile"
-    echo "  💡 Start new shell or run: . ~/.profile"
-else
-    echo "📦 Usage:"
-    echo "  ./qpkg list             # Show available packages"
-    echo "  ./qpkg install nano     # Install nano text editor"
-    echo "  ./qpkg install quickjs  # Install QuickJS JavaScript engine"
-    echo "  ./qpkg remove nano      # Remove nano text editor"
-    echo
-    echo "📦 Alternative usage:"
-    echo "  sh qpkg list            # Also works"
-    echo
-    echo "🔧 Environment Setup:"
-    echo "  ✅ Automatically configured in ~/.profile"
-    echo "  💡 Start new shell or run: . ~/.profile"
-fi
-
-echo
-echo "🎯 Testing installation..."
-
-# Test QPKG
-if [ "$GLOBAL_INSTALL" = true ]; then
-    echo "QPKG - QNX Package Manager v1.0.0"
-    echo "Professional package management for QNX 8 ARM / BlackBerry 10"
-    echo
-    echo "🌟 Ready to install QNX packages!"
-    echo "💡 Try: qpkg list"
-    echo "🔄 For installed packages to work: start new shell or run '. ~/.profile'"
-else
-    # Test with sh command
-    sh qpkg --help | head -3
-    echo
-    echo "🌟 Ready to install QNX packages!"
-    sh qpkg list >/dev/null 2>&1
-    if [ $? -eq 0 ]; then
-        echo "✅ Local installation test passed"
+    
+    # Also try .bashrc if it exists (some setups use this)
+    if [ -f "$bashrc_file" ] && [ "$BASH_VERSION" ]; then
+        print_info "Also adding configuration to ~/.bashrc"
+        {
+            echo
+            echo "# QPKG Package Manager paths"
+            echo "export PATH=\"\$PATH:$qpkg_install_dir/*/bin\""
+            echo "export LD_LIBRARY_PATH=\"\$LD_LIBRARY_PATH:$qpkg_install_dir/*/lib\""
+        } >> "$bashrc_file" 2>/dev/null
     fi
-fi 
+}
+
+# Show manual setup instructions if automatic setup fails
+show_manual_setup_instructions() {
+    echo
+    print_warning "Manual setup required:"
+    echo "Add these lines to your ~/.profile:"
+    echo
+    echo "export PATH=\"\$PATH:$(pwd)/qnx-packages/*/bin\""
+    echo "export LD_LIBRARY_PATH=\"\$LD_LIBRARY_PATH:$(pwd)/qnx-packages/*/lib\""
+    echo
+}
+
+# Test the installation
+test_installation() {
+    print_info "Testing QPKG installation..."
+    
+    local test_passed=true
+    
+    # Test qpkg execution
+    if [ "$GLOBAL_INSTALL" = true ]; then
+        if qpkg --version >/dev/null 2>&1; then
+            print_status "Global qpkg installation test passed"
+        else
+            print_warning "Global qpkg test failed"
+            test_passed=false
+        fi
+    else
+        if ./qpkg --version >/dev/null 2>&1; then
+            print_status "Local qpkg installation test passed"
+        elif sh qpkg --version >/dev/null 2>&1; then
+            print_status "Local qpkg (sh mode) installation test passed"
+        else
+            print_warning "Local qpkg test failed"
+            test_passed=false
+        fi
+    fi
+    
+    # Test environment helper if available
+    if [ "$ENV_HELPER_AVAILABLE" = true ]; then
+        if [ -f "qpkg-env.sh" ] && [ -x "qpkg-env.sh" ]; then
+            print_status "Environment helper ready"
+        else
+            print_warning "Environment helper test failed"
+        fi
+    fi
+    
+    if [ "$test_passed" = true ]; then
+        print_status "Installation test completed successfully"
+    else
+        print_warning "Some installation tests failed - check configuration"
+    fi
+}
+
+# Show usage instructions
+show_usage_instructions() {
+    echo
+    echo "${BLUE}📦 QPKG Installation Complete!${NC}"
+    echo
+    
+    if [ "$GLOBAL_INSTALL" = true ]; then
+        echo "${GREEN}Global Installation Commands:${NC}"
+        echo "  qpkg list               # Show available packages"
+        echo "  qpkg install nano       # Install nano text editor"
+        echo "  qpkg install quickjs    # Install QuickJS JavaScript engine"
+        echo "  qpkg remove nano        # Remove installed package"
+        echo
+        echo "${BLUE}Alternative usage:${NC}"
+        echo "  ./qpkg list             # Local execution"
+        echo "  sh qpkg list            # Shell execution"
+    else
+        echo "${GREEN}Local Installation Commands:${NC}"
+        echo "  ./qpkg list             # Show available packages"
+        echo "  ./qpkg install nano     # Install nano text editor"
+        echo "  ./qpkg install quickjs  # Install QuickJS JavaScript engine"
+        echo "  ./qpkg remove nano      # Remove installed package"
+        echo
+        echo "${BLUE}Alternative usage:${NC}"
+        echo "  sh qpkg list            # Shell execution"
+    fi
+    
+    echo
+    echo "${BLUE}🔧 Environment Setup:${NC}"
+    print_status "Automatically configured in ~/.profile"
+    print_info "Start a new shell or run: . ~/.profile"
+    
+    if [ "$ENV_HELPER_AVAILABLE" = true ]; then
+        echo
+        echo "${BLUE}🚀 Environment Helper:${NC}"
+        if [ "$GLOBAL_INSTALL" = true ]; then
+            echo "  qpkg-env.sh             # Setup current shell environment"
+        else
+            echo "  ./qpkg-env.sh           # Setup current shell environment"
+        fi
+        print_info "Use when you need packages in current shell immediately"
+    fi
+    
+    echo
+    echo "${GREEN}🎯 Quick Start:${NC}"
+    if [ "$GLOBAL_INSTALL" = true ]; then
+        echo "  qpkg list | head        # Show first few packages"
+        echo "  qpkg install nano       # Install a lightweight editor"
+    else
+        echo "  ./qpkg list | head      # Show first few packages"
+        echo "  ./qpkg install nano     # Install a lightweight editor"
+    fi
+    
+    if [ "$TERM49_DETECTED" = true ]; then
+        echo
+        print_info "Term49 Tip: All packages are optimized for BlackBerry 10!"
+    fi
+}
+
+# Cleanup on exit
+cleanup() {
+    # Remove any temporary files if needed
+    if [ -f ".qpkg-install.tmp" ]; then
+        rm -f ".qpkg-install.tmp" 2>/dev/null
+    fi
+}
+
+trap cleanup EXIT
+
+# Main installation flow
+main() {
+    print_header
+    detect_environment
+    check_requirements
+    download_qpkg_files
+    perform_installation
+    setup_environment
+    test_installation
+    show_usage_instructions
+    
+    echo
+    print_status "QPKG installation completed successfully!"
+    print_info "Welcome to the QNX Package Manager ecosystem!"
+}
+
+# Run main installation
+main "$@" 

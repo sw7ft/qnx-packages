@@ -4,7 +4,7 @@
 # Professional package management for QNX 8 ARM / BlackBerry 10
 # Optimized for BB10 Term49 environment
 
-VERSION="1.0.0"
+VERSION="2.0.0"
 REPO_URL="https://github.com/sw7ft/qnx-packages"
 MANIFEST_URL="https://raw.githubusercontent.com/sw7ft/qnx-packages/main/packages.json"
 
@@ -134,6 +134,126 @@ list_packages() {
     fi
     echo
     echo "Note: LARGE packages (>50MB) may take time to download on mobile connections."
+}
+
+# Check if a binary has problematic library dependencies
+check_binary_dependencies() {
+    local binary="$1"
+    local has_issues=false
+    
+    # Check if ldd is available and the file is executable
+    if [ ! -x "$binary" ] || ! command -v ldd >/dev/null 2>&1; then
+        return 1
+    fi
+    
+    # Check for common problematic patterns
+    if ldd "$binary" 2>/dev/null | grep -E "\.\./|file not found" >/dev/null; then
+        return 0  # Has issues
+    fi
+    
+    return 1  # No issues
+}
+
+# Create wrapper script for a problematic binary
+create_wrapper_script() {
+    local original_binary="$1"
+    local pkg_dir="$2"
+    local binary_name=$(basename "$original_binary")
+    local wrapper_script="$pkg_dir/bin/$binary_name"
+    local original_backup="$pkg_dir/bin/${binary_name}.bin"
+    
+    # Rename original binary to .bin
+    if ! mv "$original_binary" "$original_backup" 2>/dev/null; then
+        warn "Failed to backup $binary_name - skipping wrapper creation"
+        return 1
+    fi
+    
+    # Create wrapper script
+    cat > "$wrapper_script" << 'EOF'
+#!/bin/sh
+
+# QPKG Auto-generated wrapper script
+# This script automatically sets up the library environment for the binary
+
+# Get the directory where this script is located
+SCRIPT_DIR="$(cd "$(dirname "$0")" && pwd)"
+PKG_DIR="$(dirname "$SCRIPT_DIR")"
+
+# Set up library path to include package lib directory
+if [ -d "$PKG_DIR/lib" ]; then
+    export LD_LIBRARY_PATH="$PKG_DIR/lib:$LD_LIBRARY_PATH"
+fi
+
+# Copy any required libraries to satisfy relative path dependencies
+if [ -d "$PKG_DIR/lib" ] && [ ! -f "$PKG_DIR/libnixtla-audio.so" ]; then
+    for lib in "$PKG_DIR/lib"/*.so*; do
+        if [ -f "$lib" ]; then
+            lib_name=$(basename "$lib")
+            # Create symlink in package root for relative path access
+            ln -sf "lib/$lib_name" "$PKG_DIR/$lib_name" 2>/dev/null
+        fi
+    done
+fi
+
+# Execute the original binary with all arguments
+exec "$SCRIPT_DIR/BINARY_NAME.bin" "$@"
+EOF
+    
+    # Replace BINARY_NAME placeholder with actual binary name
+    sed -i "s/BINARY_NAME/$binary_name/g" "$wrapper_script" 2>/dev/null || {
+        # Fallback for systems without sed -i
+        sed "s/BINARY_NAME/$binary_name/g" "$wrapper_script" > "$wrapper_script.tmp" && \
+        mv "$wrapper_script.tmp" "$wrapper_script"
+    }
+    
+    # Make wrapper executable
+    chmod +x "$wrapper_script" 2>/dev/null
+    
+    return 0
+}
+
+# Scan and create wrapper scripts for all problematic binaries in a package
+create_wrapper_scripts() {
+    local pkg_dir="$1"
+    local pkg_name="$2"
+    local wrappers_created=0
+    
+    if [ ! -d "$pkg_dir/bin" ]; then
+        return
+    fi
+    
+    log "🔍 Scanning binaries for dependency issues..."
+    
+    # Check each binary in the bin directory
+    for binary in "$pkg_dir/bin"/*; do
+        if [ -f "$binary" ] && [ -x "$binary" ]; then
+            binary_name=$(basename "$binary")
+            
+            # Skip if it's already a .bin file (backup)
+            case "$binary_name" in
+                *.bin) continue ;;
+            esac
+            
+            if check_binary_dependencies "$binary"; then
+                log "📦 Creating wrapper for $binary_name (library dependency issues detected)"
+                if create_wrapper_script "$binary" "$pkg_dir"; then
+                    wrappers_created=$((wrappers_created + 1))
+                    success "✅ Wrapper created for $binary_name"
+                else
+                    warn "⚠️  Failed to create wrapper for $binary_name"
+                fi
+            fi
+        fi
+    done
+    
+    if [ $wrappers_created -gt 0 ]; then
+        echo
+        success "🎯 Created $wrappers_created wrapper script(s) for automatic library handling"
+        log "💡 Problematic binaries now work transparently with proper library paths"
+        echo
+    else
+        log "✅ All binaries have proper library dependencies - no wrappers needed"
+    fi
 }
 
 # Install a package
@@ -327,6 +447,11 @@ install_package() {
         
         if [ -d "$pkg_dir/lib" ]; then
             has_lib=true
+        fi
+        
+        # Post-installation processing: create wrapper scripts for problematic binaries
+        if [ "$has_bin" = true ]; then
+            create_wrapper_scripts "$pkg_dir" "$pkg_name"
         fi
         
         # Provide setup instructions

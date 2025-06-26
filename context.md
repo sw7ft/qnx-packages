@@ -22,9 +22,10 @@
 
 ### Core Components
 
-1. **`qpkg`** (401 lines, POSIX shell)
+1. **`qpkg`** (540+ lines, POSIX shell)
    - Main package manager executable
-   - Features: large package support, progress indicators, resume capability
+   - Features: **Auto-Wrapper Technology**, large package support, progress indicators, resume capability
+   - **Intelligent binary analysis** with automatic library dependency handling
    - BB10 compatible (tested in Term49 terminal)
 
 2. **`install-qpkg.sh`** (116 lines)
@@ -121,6 +122,9 @@
 - **Testing**: Verified working on BlackBerry 10 Term49
 
 ### Key Features Implemented
+- ✅ **Auto-Wrapper Technology** - automatic library dependency handling
+- ✅ **Intelligent Binary Analysis** - detects problematic library paths
+- ✅ **Transparent Wrapper Scripts** - seamless user experience
 - ✅ Large package detection and warnings
 - ✅ Progress indicators for downloads >50MB
 - ✅ Resume capability for interrupted downloads
@@ -131,6 +135,7 @@
 
 ### Recent Achievements
 - Built first modern package manager for BB10
+- **Implemented Auto-Wrapper Technology** - automatic library dependency handling
 - Migrated 15+ packages from legacy collection
 - Established professional development standards
 - Created comprehensive documentation
