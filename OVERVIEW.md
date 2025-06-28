@@ -61,6 +61,50 @@ package-name/              # Root directory (lowercase, hyphenated)
 - **Library bundling**: Include all custom/non-system dependencies in `lib/`
 - **Term49 compatibility**: Tested in BlackBerry 10 sandboxed environment
 
+### ⚠️ Critical Archive Structure Requirements
+
+**QPKG Extraction Behavior**: When QPKG installs a package, it extracts the archive into `$HOME/qnx-packages/{package-name}/`. This means:
+
+✅ **Correct Archive Structure** (flattened):
+```bash
+# Archive contents should be:
+./
+./bin/
+./bin/executable
+./lib/
+./lib/library.so
+./share/doc/README.md
+```
+
+❌ **Incorrect Archive Structure** (nested):
+```bash
+# This creates broken nested paths:
+package-name/
+package-name/bin/
+package-name/bin/executable  # Results in: qnx-packages/package-name/package-name/bin/
+```
+
+**Archive Creation Commands:**
+```bash
+# ✅ CORRECT: Create flattened archive
+tar -czf package-name.tar.gz -C package-name .
+
+# ❌ INCORRECT: Creates nested structure  
+tar -czf package-name.tar.gz package-name/
+```
+
+**Verification:**
+```bash
+# Test archive structure before publishing
+tar -tzf package-name.tar.gz | head -10
+# Should show: ./, ./bin/, ./lib/, NOT package-name/bin/
+```
+
+This is critical for:
+- `qpkg-env.sh` to detect `bin/` directories for PATH setup
+- Auto-Wrapper system to find binaries correctly
+- Proper library loading from `lib/` directories
+
 ## 🔧 Technical Standards
 
 ### Target Architecture
