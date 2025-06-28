@@ -67,9 +67,9 @@
     },
     "jerryjs": {
       "version": "3.0.0",
-      "description": "IoT JavaScript engine",
-      "size": "372KB",
-      "download_url": "https://github.com/sw7ft/qnx-packages/raw/main/jerryjs/jerryjs_es6_bb10.tar.gz",
+      "description": "Lightweight JavaScript engine with ES6 support",
+      "size": "368KB",
+      "download_url": "https://github.com/sw7ft/qnx-packages/raw/main/jerryjs/jerryjs.tar.gz",
       "install_method": "extract_and_deploy",
       "dependencies": [],
       "arch": "arm",
