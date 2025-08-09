@@ -1,0 +1,14 @@
+prefix=/accounts/1000/shared/misc
+exec_prefix=/accounts/1000/shared/misc
+libdir=/accounts/1000/shared/misc/lib
+includedir=/accounts/1000/shared/misc/include
+
+Name: FreeType 2
+URL: https://freetype.org
+Description: A free, high-quality, and portable font engine.
+Version: 24.0.18
+Requires:
+Requires.private: zlib
+Libs: -L${libdir} -lfreetype
+Libs.private: -lbz2
+Cflags: -I${includedir}/freetype2

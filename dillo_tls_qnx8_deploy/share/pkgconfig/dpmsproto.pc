@@ -1,0 +1,7 @@
+prefix=/accounts/1000/shared/misc
+includedir=${prefix}/include
+
+Name: DPMSProto
+Description: DPMS extension headers
+Version: 1.2
+Cflags: -I${includedir}

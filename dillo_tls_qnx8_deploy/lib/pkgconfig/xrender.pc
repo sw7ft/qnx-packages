@@ -1,0 +1,11 @@
+prefix=/accounts/1000/shared/misc
+exec_prefix=${prefix}
+libdir=${prefix}/lib
+includedir=${prefix}/include
+
+Name: Xrender
+Description: X Render Library
+Version: 0.9.10
+Requires: x11 renderproto >= 0.11
+Cflags: -I${includedir}
+Libs: -L${libdir} -lXrender
